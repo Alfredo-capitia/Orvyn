@@ -13,7 +13,7 @@ type State struct {
 }
 
 const (
-	DefaultDir  = "/var/lib/vpsmon"
+	DefaultDir  = "/var/lib/orvyn"
 	DefaultFile = "state.json"
 )
 

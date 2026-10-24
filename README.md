@@ -1,8 +1,8 @@
-# VPSMon
+# Orvyn
 
 **Automate observability setup on your Linux VPS. Local-first, plan-before-apply, privacy by default.**
 
-VPSMon is a tool that helps you go from "app running on a VPS" to "functional observability" without manually installing, configuring and integrating Prometheus, Grafana, Loki, Alloy and exporters.
+Orvyn is a tool that helps you go from "app running on a VPS" to "functional observability" without manually installing, configuring and integrating Prometheus, Grafana, Loki, Alloy and exporters.
 
 ## Philosophy
 
@@ -11,32 +11,32 @@ VPSMon is a tool that helps you go from "app running on a VPS" to "functional ob
 - **Least privilege** - Runs as your user by default, minimal permissions
 - **Privacy by default** - Redacts secrets from logs, minimizes data collection
 - **Docker API first** - Prefers Docker SDK over shell commands
-- **Stack isolated** - Creates observability stack in `/opt/vpsmon/stack/`, doesn't touch existing configs
+- **Stack isolated** - Creates observability stack in `/opt/orvyn/stack/`, doesn't touch existing configs
 
 ## Features
 
 - **Discovery** - Detects OS, Docker, containers, existing observability stack
 - **Plan & Apply** - Safe, confirmed changes with automatic backups
-- **Logs in terminal** - `vpsmon logs <service> --follow` with automatic redaction
+- **Logs in terminal** - `orvyn logs <service> --follow` with automatic redaction
 - **Status & Validation** - Check health of your observability stack
 
 ## Quick Start
 
 ```bash
 # Build
-go build ./cmd/vpsmon
+go build ./cmd/orvyn
 
 # Discover environment (read-only)
-./vpsmon discover
+./orvyn discover
 
 # Plan changes (read-only)
-./vpsmon plan
+./orvyn plan
 
 # Apply with confirmation
-./vpsmon apply
+./orvyn apply
 
 # Follow logs
-./vpsmon logs my-app --follow
+./orvyn logs my-app --follow
 ```
 
 ## Security

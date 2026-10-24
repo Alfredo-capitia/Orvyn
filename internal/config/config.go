@@ -6,9 +6,9 @@ import (
 )
 
 const (
-	DefaultConfigDir = "/etc/vpsmon"
-	DefaultStackDir  = "/opt/vpsmon/stack"
-	DefaultBackupDir = "/opt/vpsmon/backups"
+	DefaultConfigDir = "/etc/orvyn"
+	DefaultStackDir  = "/opt/orvyn/stack"
+	DefaultBackupDir = "/opt/orvyn/backups"
 )
 
 type Config struct {
@@ -23,7 +23,7 @@ func Default() *Config {
 		StackDir:  DefaultStackDir,
 		BackupDir: DefaultBackupDir,
 		ConfigDir: DefaultConfigDir,
-		StateDir:  "/var/lib/vpsmon",
+		StateDir:  "/var/lib/orvyn",
 	}
 }
 

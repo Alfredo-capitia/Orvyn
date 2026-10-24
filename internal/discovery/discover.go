@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/fredy-arias/vpsmon/internal/docker"
+	"github.com/fredy-arias/orvyn/internal/docker"
 )
 
 type Result struct {

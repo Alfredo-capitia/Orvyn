@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/fredy-arias/vpsmon/internal/docker"
-	"github.com/fredy-arias/vpsmon/internal/redaction"
+	"github.com/fredy-arias/orvyn/internal/docker"
+	"github.com/fredy-arias/orvyn/internal/redaction"
 )
 
 func Stream(ctx context.Context, service string, follow bool, tail string, timestamps bool) error {

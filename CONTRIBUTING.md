@@ -1,4 +1,4 @@
-# Contributing to VPSMon
+# Contributing to Orvyn
 
 ## Workflow
 1. Fork the repository

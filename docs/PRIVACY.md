@@ -14,6 +14,6 @@
 - No automatic uploads
 
 ## Storage
-- State in /var/lib/vpsmon/ with restrictive permissions
-- Backups in /opt/vpsmon/backups/ or configured location
+- State in /var/lib/orvyn/ with restrictive permissions
+- Backups in /opt/orvyn/backups/ or configured location
 - Audit in JSONL, metadata only

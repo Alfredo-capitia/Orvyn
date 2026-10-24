@@ -5,7 +5,7 @@ import "time"
 type Component struct {
 	Name      string
 	Type      string // docker, prometheus, loki, alloy, grafana, node-exporter, cadvisor
-	Managed   bool   // true if managed by vpsmon
+	Managed   bool   // true if managed by orvyn
 	Running   bool
 	Image     string
 	Container string

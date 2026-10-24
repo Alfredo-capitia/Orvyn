@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/fredy-arias/vpsmon/internal/config"
-	"github.com/fredy-arias/vpsmon/internal/planner"
+	"github.com/fredy-arias/orvyn/internal/config"
+	"github.com/fredy-arias/orvyn/internal/planner"
 	"github.com/spf13/cobra"
 )
 
@@ -21,7 +21,7 @@ var planCmd = &cobra.Command{
 		}
 		cfg := config.Default()
 
-		fmt.Println("=== VPSMon Plan (read-only) ===")
+		fmt.Println("=== Orvyn Plan (read-only) ===")
 		fmt.Printf("Created at: %s\n", plan.CreatedAt.Format("2006-01-02 15:04:05"))
 		fmt.Printf("Stack directory: %s\n", cfg.StackDir)
 		fmt.Printf("Backup directory: %s\n\n", cfg.BackupDir)
@@ -45,9 +45,9 @@ var planCmd = &cobra.Command{
 		}
 
 		fmt.Println("Notes:")
-		fmt.Println("  - Stack will be ISOLATED in /opt/vpsmon/stack/ (won't touch existing docker-compose.yml)")
+		fmt.Println("  - Stack will be ISOLATED in /opt/orvyn/stack/ (won't touch existing docker-compose.yml)")
 		fmt.Println("  - No changes made yet")
-		fmt.Println("  - Use 'vpsmon apply' to execute (requires confirmation)")
+		fmt.Println("  - Use 'orvyn apply' to execute (requires confirmation)")
 		fmt.Println("\n[read-only] No changes made.")
 		return nil
 	},

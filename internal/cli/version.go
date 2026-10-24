@@ -10,6 +10,6 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show version information",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("vpsmon v0.0.1-dev")
+		fmt.Println("orvyn v0.0.1-dev")
 	},
 }

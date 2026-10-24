@@ -5,9 +5,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "vpsmon",
+	Use:   "orvyn",
 	Short: "VPS observability automation made simple",
-	Long: `VPSMon helps automate observability setup on Linux VPS with Docker.
+	Long: `Orvyn helps automate observability setup on Linux VPS with Docker.
 Local-first, plan-before-apply, privacy by default.`,
 }
 

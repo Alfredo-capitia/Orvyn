@@ -1,6 +1,6 @@
 # Security Policy
 
-VPSMon follows strict security principles. See the full security strategy in the project documentation.
+Orvyn follows strict security principles. See the full security strategy in the project documentation.
 
 ## Core Principles
 

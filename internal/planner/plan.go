@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/fredy-arias/vpsmon/internal/config"
-	"github.com/fredy-arias/vpsmon/internal/discovery"
-	"github.com/fredy-arias/vpsmon/pkg/types"
+	"github.com/fredy-arias/orvyn/internal/config"
+	"github.com/fredy-arias/orvyn/internal/discovery"
+	"github.com/fredy-arias/orvyn/pkg/types"
 )
 
 func Generate(ctx context.Context) (*types.Plan, error) {

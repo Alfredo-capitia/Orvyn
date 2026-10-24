@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/fredy-arias/vpsmon/internal/logs"
+	"github.com/fredy-arias/orvyn/internal/logs"
 	"github.com/spf13/cobra"
 )
 

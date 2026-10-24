@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/fredy-arias/vpsmon/internal/discovery"
+	"github.com/fredy-arias/orvyn/internal/discovery"
 	"github.com/spf13/cobra"
 )
 

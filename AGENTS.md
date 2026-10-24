@@ -1,4 +1,4 @@
-# VPSMon — OpenCode Project Rules
+# Orvyn — OpenCode Project Rules
 
 ## Mandatory security behavior
 

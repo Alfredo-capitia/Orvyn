@@ -1,4 +1,4 @@
-module github.com/fredy-arias/vpsmon
+module github.com/fredy-arias/orvyn
 
 go 1.27.2
 

@@ -1,6 +1,6 @@
 package redact
 
-import "github.com/fredy-arias/vpsmon/internal/redaction"
+import "github.com/fredy-arias/orvyn/internal/redaction"
 
 // Redact re-exports redaction for naming compatibility
 func Redact(s string) string {

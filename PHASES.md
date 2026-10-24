@@ -1,4 +1,4 @@
-# VPSMon - Roadmap por Fases
+# Orvyn - Roadmap por Fases
 
 Este documento serve como guia para manter o fio lógico do projeto. Sempre que avançarmos para uma nova fase, marcamos as tarefas aqui.
 
@@ -79,7 +79,7 @@ Este documento serve como guia para manter o fio lógico do projeto. Sempre que 
 - [ ] Detectar SO, Docker, containers
 - [ ] Detectar projetos Docker Compose
 - [ ] Detectar stack existente (Prometheus/Grafana/Loki/Alloy/cadvisor/node-exporter)
-- [ ] Integrar com `vpsmon discover`
+- [ ] Integrar com `orvyn discover`
 
 ### Critérios de aceite
 - Completamente read-only
@@ -92,7 +92,7 @@ Este documento serve como guia para manter o fio lógico do projeto. Sempre que 
 ---
 
 ## Fase 4: Logs no Terminal
-**Objetivo:** Feature diferenciadora `vpsmon logs`
+**Objetivo:** Feature diferenciadora `orvyn logs`
 
 ### Tarefas
 - [ ] `internal/logs/stream.go` - Streaming via Docker API
@@ -100,7 +100,7 @@ Este documento serve como guia para manter o fio lógico do projeto. Sempre que 
 - [ ] Flags: `--follow`, `--tail`, `--timestamps`
 - [ ] Resolução de serviço/container
 - [ ] Escape seguro de terminal sequences
-- [ ] Integrar com `vpsmon logs`
+- [ ] Integrar com `orvyn logs`
 
 ### Critérios de aceite
 - Usa Docker API
@@ -121,7 +121,7 @@ Este documento serve como guia para manter o fio lógico do projeto. Sempre que 
 - [ ] Comparar discovered vs desired
 - [ ] Gerar ações detalhadas
 - [ ] Identificar backups necessários
-- [ ] Integrar com `vpsmon plan`
+- [ ] Integrar com `orvyn plan`
 
 ### Critérios de aceite
 - 100% read-only
@@ -138,13 +138,13 @@ Este documento serve como guia para manter o fio lógico do projeto. Sempre que 
 
 ### Tarefas
 - [ ] `internal/stack/generate.go` - Gerar docker-compose para stack mínima
-- [ ] Stack isolada em `/opt/vpsmon/stack/`
+- [ ] Stack isolada em `/opt/orvyn/stack/`
 - [ ] Confirmação interativa obrigatória
 - [ ] Backups automáticos
 - [ ] Criar diretórios com permissões corretas
 - [ ] Aplicar via docker compose
 - [ ] Audit log
-- [ ] Integrar com `vpsmon apply`
+- [ ] Integrar com `orvyn apply`
 
 ### Critérios de aceite
 - Nunca mexe em docker-compose existente
@@ -165,7 +165,7 @@ Este documento serve como guia para manter o fio lógico do projeto. Sempre que 
 - [ ] Verificar containers UP
 - [ ] Verificar targets Prometheus
 - [ ] Verificar Loki
-- [ ] Integrar `vpsmon validate` e `vpsmon status`
+- [ ] Integrar `orvyn validate` e `orvyn status`
 - [ ] Mensagens com ações sugeridas
 
 ### Critérios de aceite

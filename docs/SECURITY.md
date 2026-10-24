@@ -1,7 +1,7 @@
-# VPSMon Security Documentation
+# Orvyn Security Documentation
 
 ## Overview
-VPSMon is local-first and privacy by default. Security is mandatory and enforced by design.
+Orvyn is local-first and privacy by default. Security is mandatory and enforced by design.
 
 ## Principles
 - Local-first, no cloud dependency by default
@@ -12,12 +12,12 @@ VPSMon is local-first and privacy by default. Security is mandatory and enforced
 - Secure by default
 
 ## Trust Boundaries
-1. VPSMon process <-> OS
-2. VPSMon <-> Docker daemon
-3. VPSMon <-> filesystem/config
-4. VPSMon <-> logs
-5. VPSMon <-> external executables
-6. VPSMon <-> dependencies
+1. Orvyn process <-> OS
+2. Orvyn <-> Docker daemon
+3. Orvyn <-> filesystem/config
+4. Orvyn <-> logs
+5. Orvyn <-> external executables
+6. Orvyn <-> dependencies
 
 ## Core Controls
 - Secret redaction
