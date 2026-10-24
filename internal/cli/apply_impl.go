@@ -23,7 +23,7 @@ var applyCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		cfg := config.Default()
-		logger := audit.New("/var/lib/orvyn/audit.jsonl")
+		logger := audit.New(cfg.StateDir + "/audit.jsonl")
 
 		// Show plan first
 		plan, err := planner.Generate(ctx)
@@ -36,7 +36,7 @@ var applyCmd = &cobra.Command{
 		for i, a := range plan.Actions {
 			fmt.Printf("  %d. [%s] %s\n", i+1, a.Type, a.Description)
 		}
-		fmt.Println("\nStack will be created in: " + cfg.StackDir)
+		fmt.Printf("\nStack will be created in: %s\n", cfg.StackDir)
 		fmt.Println("This will NOT modify existing docker-compose.yml files")
 		fmt.Println("\nType 'y' to confirm, anything else to abort:")
 
@@ -70,7 +70,8 @@ var applyCmd = &cobra.Command{
 		fmt.Println(string(out))
 
 		fmt.Println("[4/4] Done")
-		fmt.Println("\nStack started. Run 'orvyn status' or 'orvyn validate' to check health.")
+		fmt.Printf("\nStack started in %s\n", cfg.StackDir)
+		fmt.Println("Run 'orvyn status' or 'orvyn validate' to check health.")
 		fmt.Println("Access Prometheus: http://127.0.0.1:9090 (localhost only)")
 		fmt.Println("Access Loki: http://127.0.0.1:3100 (localhost only)")
 

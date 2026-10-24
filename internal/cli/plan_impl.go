@@ -45,7 +45,7 @@ var planCmd = &cobra.Command{
 		}
 
 		fmt.Println("Notes:")
-		fmt.Println("  - Stack will be ISOLATED in /opt/orvyn/stack/ (won't touch existing docker-compose.yml)")
+		fmt.Println("  - Stack will be ISOLATED in stack directory/ (won't touch existing docker-compose.yml)")
 		fmt.Println("  - No changes made yet")
 		fmt.Println("  - Use 'orvyn apply' to execute (requires confirmation)")
 		fmt.Println("\n[read-only] No changes made.")
