@@ -1,0 +1,8 @@
+# Default owners
+* @fredy-arias
+
+# Security sensitive
+/AGENTS.md @fredy-arias
+/SECURITY.md @fredy-arias
+/docs/ @fredy-arias
+/.github/ @fredy-arias

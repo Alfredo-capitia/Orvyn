@@ -1,0 +1,48 @@
+# Binaries
+vpsmon
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace file
+go.work
+
+# Dependency directories
+vendor/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# VPSMon runtime/state
+/opt/vpsmon/
+/var/lib/vpsmon/
+/var/log/vpsmon/
+/etc/vpsmon/
+
+# Backups
+backups/
+*.bak
+*.backup
+
+# Local config
+config.local.yaml
+*.local.json
+
+# Logs
+*.log
