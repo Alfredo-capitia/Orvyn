@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	"github.com/fredy-arias/orvyn/internal/config"
 	"github.com/fredy-arias/orvyn/internal/fsutil"
@@ -13,9 +12,7 @@ import (
 
 func ComposeContent() string {
 	l := resources.Detect()
-	return fmt.Sprintf(`version: '3.8'
-
-networks:
+	return fmt.Sprintf(`networks:
   orvyn-net:
     driver: bridge
     labels:
@@ -52,11 +49,8 @@ services:
       - '--path.procfs=/host/proc'
       - '--path.sysfs=/host/sys'
       - '--path.rootfs=/rootfs'
-    deploy:
-      resources:
-        limits:
-          memory: %s
-          cpus: '%s'
+    mem_limit: %s
+    cpus: '%s'
     pids_limit: %d
     labels:
       com.orvyn.managed: "true"
@@ -75,11 +69,8 @@ services:
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
     privileged: false
-    deploy:
-      resources:
-        limits:
-          memory: %s
-          cpus: '%s'
+    mem_limit: %s
+    cpus: '%s'
     pids_limit: %d
     labels:
       com.orvyn.managed: "true"
@@ -100,11 +91,8 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-    deploy:
-      resources:
-        limits:
-          memory: %s
-          cpus: '%s'
+    mem_limit: %s
+    cpus: '%s'
     pids_limit: %d
     labels:
       com.orvyn.managed: "true"
@@ -123,11 +111,8 @@ services:
       - ./loki/loki-config.yml:/etc/loki/local-config.yaml:ro
       - loki_data:/loki
     command: -config.file=/etc/loki/local-config.yaml
-    deploy:
-      resources:
-        limits:
-          memory: %s
-          cpus: '%s'
+    mem_limit: %s
+    cpus: '%s'
     pids_limit: %d
     labels:
       com.orvyn.managed: "true"
@@ -148,11 +133,8 @@ services:
       - --server.http.listen-addr=127.0.0.1:12345
       - --storage.path=/var/lib/alloy/data
       - /etc/alloy/config.alloy
-    deploy:
-      resources:
-        limits:
-          memory: %s
-          cpus: '%s'
+    mem_limit: %s
+    cpus: '%s'
     pids_limit: %d
     labels:
       com.orvyn.managed: "true"
@@ -275,5 +257,3 @@ func GenerateAll() error {
 
 	return nil
 }
-
-var _ = strconv.Itoa
