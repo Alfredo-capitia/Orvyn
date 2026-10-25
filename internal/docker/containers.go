@@ -82,3 +82,9 @@ func (c *Client) FindContainerByNameOrService(ctx context.Context, name string) 
 	}
 	return nil, nil
 }
+
+func (c *Client) InspectContainer(ctx context.Context, id string) (container.InspectResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	return c.cli.ContainerInspect(ctx, id)
+}
