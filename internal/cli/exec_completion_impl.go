@@ -14,8 +14,10 @@ import (
 var execCmd = &cobra.Command{
 	Use:   "exec <service> [command...]",
 	Short: "Execute a command in a managed container",
-	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			return cmd.Help()
+		}
 		target := args[0]
 		cmdArgs := args[1:]
 		if len(cmdArgs) == 0 {
@@ -60,13 +62,30 @@ var execCmd = &cobra.Command{
 		}
 
 		fmt.Printf("[EXEC] %s\n", target)
-		dexec := exec.CommandContext(context.Background(), "docker", append([]string{"exec", "-it", id}, cmdArgs...)...)
+		dargs := []string{"exec"}
+		if isTerminal() && len(args) == 1 {
+			dargs = append(dargs, "-it")
+		} else if isTerminal() {
+			dargs = append(dargs, "-it")
+		} else {
+			dargs = append(dargs, "-i")
+		}
+		dargs = append(dargs, id)
+		dargs = append(dargs, cmdArgs...)
+		dexec := exec.CommandContext(context.Background(), "docker", dargs...)
 		dexec.Stdin = os.Stdin
 		dexec.Stdout = os.Stdout
 		dexec.Stderr = os.Stderr
-		err = dexec.Run()
-		return err
+		return dexec.Run()
 	},
+}
+
+func isTerminal() bool {
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	return (fi.Mode() & os.ModeCharDevice) != 0
 }
 
 var completionCmd = &cobra.Command{
