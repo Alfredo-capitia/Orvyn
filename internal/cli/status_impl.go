@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -43,40 +44,42 @@ func statusCmdRun(cmd *cobra.Command, args []string) error {
 		if svc == "" {
 			svc = "-"
 		}
+
 		health := "-"
 		if ct.State == "running" {
-			if ct.Status != "" {
-				// try to infer from status text
-				if contains(ct.Status, "(healthy)") {
+			if ct.ID != "" {
+				if insp, err := c.InspectContainer(ctx, ct.ID); err == nil && insp.State != nil && insp.State.Health != nil {
+					h := strings.ToLower(insp.State.Health.Status)
+					if h != "" {
+						health = h
+					} else {
+						health = "unknown"
+					}
+				} else if strings.Contains(ct.Status, "(healthy)") {
 					health = "healthy"
-				} else if contains(ct.Status, "(unhealthy)") {
+				} else if strings.Contains(ct.Status, "(unhealthy)") {
 					health = "unhealthy"
-				} else if contains(ct.Status, "(health: starting)") {
+				} else if strings.Contains(ct.Status, "(health: starting)") {
 					health = "starting"
 				} else {
 					health = "unknown"
 				}
 			} else {
-				health = "unknown"
+				if strings.Contains(ct.Status, "(healthy)") {
+					health = "healthy"
+				} else if strings.Contains(ct.Status, "(unhealthy)") {
+					health = "unhealthy"
+				} else if strings.Contains(ct.Status, "(health: starting)") {
+					health = "starting"
+				} else {
+					health = "unknown"
+				}
 			}
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", name, svc, ct.Status, ct.State, health)
 	}
 	w.Flush()
 	return nil
-}
-
-func contains(s, sub string) bool {
-	return len(s) >= len(sub) && (s == sub || len(sub) == 0 || index(s, sub) >= 0)
-}
-
-func index(s, sep string) int {
-	for i := 0; i <= len(s)-len(sep); i++ {
-		if s[i:i+len(sep)] == sep {
-			return i
-		}
-	}
-	return -1
 }
 
 func init() {
