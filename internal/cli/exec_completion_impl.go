@@ -4,11 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
+	"os/exec"
 
 	"github.com/fredy-arias/orvyn/internal/discovery"
 	"github.com/fredy-arias/orvyn/internal/docker"
-	"github.com/fredy-arias/orvyn/internal/executil"
 	"github.com/spf13/cobra"
 )
 
@@ -23,7 +22,7 @@ var execCmd = &cobra.Command{
 			cmdArgs = []string{"sh"}
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
 		dc, err := docker.New()
@@ -60,29 +59,14 @@ var execCmd = &cobra.Command{
 			id = id[:12]
 		}
 
-		execArgs := append([]string{"exec", "-it", id}, cmdArgs...)
-		// fallback to non-interactive if not a tty
-		if !isTerminal() {
-			execArgs = []string{"exec", "-i", id}
-			execArgs = append(execArgs, cmdArgs...)
-		}
-
 		fmt.Printf("[EXEC] %s\n", target)
-		out, err := executil.RunWithTimeout(context.Background(), 300*time.Second, "docker", execArgs...)
-		if err != nil {
-			return err
-		}
-		fmt.Print(string(out))
-		return nil
+		dexec := exec.CommandContext(context.Background(), "docker", append([]string{"exec", "-it", id}, cmdArgs...)...)
+		dexec.Stdin = os.Stdin
+		dexec.Stdout = os.Stdout
+		dexec.Stderr = os.Stderr
+		err = dexec.Run()
+		return err
 	},
-}
-
-func isTerminal() bool {
-	fi, err := os.Stdin.Stat()
-	if err != nil {
-		return false
-	}
-	return (fi.Mode() & os.ModeCharDevice) != 0
 }
 
 var completionCmd = &cobra.Command{
