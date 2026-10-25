@@ -12,6 +12,7 @@ import (
 	applytrack "github.com/fredy-arias/orvyn/internal/apply"
 	"github.com/fredy-arias/orvyn/internal/audit"
 	"github.com/fredy-arias/orvyn/internal/config"
+	"github.com/fredy-arias/orvyn/internal/docker"
 	"github.com/fredy-arias/orvyn/internal/planner"
 	"github.com/fredy-arias/orvyn/internal/stack"
 	"github.com/fredy-arias/orvyn/internal/validate"
@@ -34,6 +35,22 @@ var applyCmd = &cobra.Command{
 			fmt.Println("\n[PRE-FLIGHT] Required checks failed. Aborting.")
 			logger.Log(audit.Event{Operation: "apply", Result: "preflight_failed"})
 			return fmt.Errorf("preflight failed")
+		}
+
+		// Idempotency check
+		if managed, err := checkManaged(ctx); err == nil && len(managed) > 0 {
+			fmt.Printf("\n[IDEMPOTENT] Detected %d Orvyn-managed containers already present.\n", len(managed))
+			for _, m := range managed {
+				name := ""
+				if len(m.Names) > 0 {
+					name = m.Names[0]
+					if len(name) > 0 && name[0] == '/' {
+						name = name[1:]
+					}
+				}
+				fmt.Printf("  - %s [%s] %s (%s)\n", name, m.ID, m.Image, m.State)
+			}
+			fmt.Println("  Running 'docker compose up -d' (idempotent) to ensure desired state...")
 		}
 
 		// Show plan first
@@ -143,4 +160,26 @@ var applyCmd = &cobra.Command{
 		_ = time.Now()
 		return nil
 	},
+}
+
+func checkManaged(ctx context.Context) ([]docker.Container, error) {
+	cli, err := docker.New()
+	if err != nil {
+		return nil, err
+	}
+	defer cli.Close()
+	if err := cli.Ping(ctx); err != nil {
+		return nil, err
+	}
+	conts, err := cli.ListContainers(ctx, true)
+	if err != nil {
+		return nil, err
+	}
+	res := []docker.Container{}
+	for _, c := range conts {
+		if v, ok := c.Labels["com.orvyn.managed"]; ok && v == "true" {
+			res = append(res, c)
+		}
+	}
+	return res, nil
 }
