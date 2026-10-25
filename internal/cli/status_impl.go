@@ -45,12 +45,38 @@ func statusCmdRun(cmd *cobra.Command, args []string) error {
 		}
 		health := "-"
 		if ct.State == "running" {
-			health = "unknown"
+			if ct.Status != "" {
+				// try to infer from status text
+				if contains(ct.Status, "(healthy)") {
+					health = "healthy"
+				} else if contains(ct.Status, "(unhealthy)") {
+					health = "unhealthy"
+				} else if contains(ct.Status, "(health: starting)") {
+					health = "starting"
+				} else {
+					health = "unknown"
+				}
+			} else {
+				health = "unknown"
+			}
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", name, svc, ct.Status, ct.State, health)
 	}
 	w.Flush()
 	return nil
+}
+
+func contains(s, sub string) bool {
+	return len(s) >= len(sub) && (s == sub || len(sub) == 0 || index(s, sub) >= 0)
+}
+
+func index(s, sep string) int {
+	for i := 0; i <= len(s)-len(sep); i++ {
+		if s[i:i+len(sep)] == sep {
+			return i
+		}
+	}
+	return -1
 }
 
 func init() {
