@@ -5,12 +5,6 @@ import (
 	"path/filepath"
 )
 
-const (
-	DefaultConfigDir = "/etc/orvyn"
-	DefaultStackDir  = "/opt/orvyn/stack"
-	DefaultBackupDir = "/opt/orvyn/backups"
-)
-
 type Config struct {
 	StackDir  string
 	BackupDir string
@@ -19,11 +13,28 @@ type Config struct {
 }
 
 func Default() *Config {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		home = os.Getenv("HOME")
+	}
+
+	// If running as root, use system paths
+	if os.Geteuid() == 0 {
+		return &Config{
+			StackDir:  "/opt/orvyn/stack",
+			BackupDir: "/opt/orvyn/backups",
+			ConfigDir: "/etc/orvyn",
+			StateDir:  "/var/lib/orvyn",
+		}
+	}
+
+	// Non-root: use user-local paths (no sudo needed)
+	base := filepath.Join(home, ".local", "share", "orvyn")
 	return &Config{
-		StackDir:  DefaultStackDir,
-		BackupDir: DefaultBackupDir,
-		ConfigDir: DefaultConfigDir,
-		StateDir:  "/var/lib/orvyn",
+		StackDir:  filepath.Join(base, "stack"),
+		BackupDir: filepath.Join(base, "backups"),
+		ConfigDir: filepath.Join(home, ".config", "orvyn"),
+		StateDir:  filepath.Join(home, ".local", "state", "orvyn"),
 	}
 }
 
@@ -34,7 +45,6 @@ func EnsureDirs(c *Config) error {
 			return err
 		}
 	}
-	// tighten state dir
 	if err := os.Chmod(c.StateDir, 0700); err != nil {
 		// best effort
 	}

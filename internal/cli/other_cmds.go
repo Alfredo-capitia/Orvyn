@@ -6,14 +6,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var applyCmd = &cobra.Command{
-	Use:   "apply",
-	Short: "Apply the planned configuration",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("apply: not implemented yet (will be implemented in Fase 6)")
-	},
-}
-
 var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show status of managed components",
