@@ -100,7 +100,7 @@ services:
       com.orvyn.service: "prometheus"
 
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:3.0.0
     container_name: orvyn-loki
     restart: unless-stopped
     networks:
@@ -110,7 +110,7 @@ services:
     volumes:
       - ./loki/loki-config.yml:/etc/loki/local-config.yaml:ro
       - loki_data:/loki
-    command: -config.file=/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/local-config.yaml -validation.allow-structured-metadata=false
     mem_limit: %s
     cpus: '%s'
     pids_limit: %d
@@ -167,8 +167,10 @@ func LokiConfig() string {
 
 server:
   http_listen_port: 3100
+  grpc_listen_port: 9096
 
 common:
+  instance_addr: 127.0.0.1
   path_prefix: /loki
   storage:
     filesystem:
@@ -179,18 +181,28 @@ common:
     kvstore:
       store: inmemory
 
+query_range:
+  results_cache:
+    cache:
+      embedded_cache:
+        enabled: true
+        max_size_mb: 100
+
 schema_config:
   configs:
     - from: 2020-10-24
-      store: boltdb-shipper
+      store: tsdb
       object_store: filesystem
-      schema: v11
+      schema: v13
       index:
         prefix: index_
         period: 24h
 
 ruler:
   alertmanager_url: http://localhost:9093
+
+limits_config:
+  allow_structured_metadata: false
 `
 }
 
