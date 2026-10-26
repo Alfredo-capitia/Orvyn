@@ -124,9 +124,15 @@ func (m model) applyFilter() {
 			if svc == "" {
 				svc = "-"
 			}
-			health := "-"
-			if ct.State == "running" {
-				health = "unknown"
+			health := ct.Labels["health"]
+			if health == "" {
+				if h, ok := m.healthCache[ct.ID]; ok {
+					health = h
+				} else if ct.State == "running" {
+					health = "unknown"
+				} else {
+					health = "-"
+				}
 			}
 			rows = append(rows, table.Row{name, svc, ct.Status, ct.State, health})
 		}
@@ -147,9 +153,15 @@ func (m model) applyFilter() {
 		}
 		if strings.Contains(strings.ToLower(name), q) || strings.Contains(strings.ToLower(svc), q) {
 			filtered = append(filtered, ct)
-			health := "-"
-			if ct.State == "running" {
-				health = "unknown"
+			health := ct.Labels["health"]
+			if health == "" {
+				if h, ok := m.healthCache[ct.ID]; ok {
+					health = h
+				} else if ct.State == "running" {
+					health = "unknown"
+				} else {
+					health = "-"
+				}
 			}
 			rows = append(rows, table.Row{name, svc, ct.Status, ct.State, health})
 		}
