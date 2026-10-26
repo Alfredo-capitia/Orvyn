@@ -227,9 +227,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.containers = []docker.Container(msg)
 		rows := []table.Row{}
 		for _, ct := range m.containers {
-			name := ct.Names[0]
-			if len(name) > 0 && name[0] == '/' {
-				name = name[1:]
+			name := ct.ID
+			if len(ct.Names) > 0 {
+				name = ct.Names[0]
+				if len(name) > 0 && name[0] == '/' {
+					name = name[1:]
+				}
 			}
 			svc := ct.Labels["com.orvyn.service"]
 			if svc == "" {
@@ -281,7 +284,7 @@ func (m model) View() string {
 	sub := lipgloss.NewStyle().Faint(true).Render(" | k9s-style terminal dashboard")
 	title := header + sub
 
-	tabs := []string{"[1/Tab] Overview", "[l] Logs", "[m/Tab] Metrics", "[?] Help"}
+	tabs := []string{"[o] Overview", "[l] Logs", "[m] Metrics", "[?] Help"}
 	var tabStrs []string
 	for i, t := range tabs {
 		if (i == 0 && m.view == viewOverview) || (i == 1 && m.view == viewLogs) || (i == 2 && m.view == viewMetrics) || (i == 3 && m.view == viewHelp) {
@@ -293,7 +296,7 @@ func (m model) View() string {
 	tabBar := strings.Join(tabStrs, "  ")
 
 	if m.view == viewOverview {
-		help := lipgloss.NewStyle().Faint(true).Render("↑/↓ navigate • l: logs • m: metrics • r: refresh • tab: switch • ?: help • q: quit")
+		help := lipgloss.NewStyle().Faint(true).Render("↑/↓ navigate • l: logs • m: metrics • r: refresh • tab: switch (Overview → Logs → Metrics) • ?: help • q: quit")
 		return fmt.Sprintf("%s\n%s\n\n%s\n\n%s\n", title, tabBar, m.table.View(), help)
 	}
 
@@ -303,9 +306,12 @@ func (m model) View() string {
 			idx := m.table.Cursor()
 			if idx >= 0 && idx < len(m.containers) {
 				ct := m.containers[idx]
-				name := ct.Names[0]
-				if len(name) > 0 && name[0] == '/' {
-					name = name[1:]
+				name := ct.ID
+				if len(ct.Names) > 0 {
+					name = ct.Names[0]
+					if len(name) > 0 && name[0] == '/' {
+						name = name[1:]
+					}
 				}
 				svc = name
 			}

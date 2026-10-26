@@ -110,8 +110,10 @@ func getContainerMetrics(dc *docker.Client) []ContMetrics {
 		}
 		res = append(res, ContMetrics{ID: c.ID, Name: name, CPU: "-", Mem: "-"})
 	}
+	refreshCtx, refreshCancel := context.WithTimeout(context.Background(), 12*time.Second)
+	defer refreshCancel()
 	for i := range res {
-		statsCtx, scancel := context.WithTimeout(context.Background(), 6*time.Second)
+		statsCtx, scancel := context.WithTimeout(refreshCtx, 6*time.Second)
 		rc, err := dc.ContainerStats(statsCtx, res[i].ID, false)
 		if err != nil {
 			scancel()
