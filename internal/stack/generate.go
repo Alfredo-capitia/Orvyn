@@ -254,16 +254,16 @@ func GenerateAll() error {
 		}
 	}
 
-	if err := fsutil.AtomicWrite(cfg.StackCompose(), []byte(ComposeContent()), 0640); err != nil {
+	if err := fsutil.AtomicWrite(cfg.StackCompose(), []byte(ComposeContent()), 0644); err != nil {
 		return err
 	}
-	if err := fsutil.AtomicWrite(filepath.Join(cfg.StackDir, "prometheus", "prometheus.yml"), []byte(PrometheusConfig()), 0640); err != nil {
+	if err := fsutil.AtomicWrite(filepath.Join(cfg.StackDir, "prometheus", "prometheus.yml"), []byte(PrometheusConfig()), 0644); err != nil {
 		return err
 	}
-	if err := fsutil.AtomicWrite(filepath.Join(cfg.StackDir, "loki", "loki-config.yml"), []byte(LokiConfig()), 0640); err != nil {
+	if err := fsutil.AtomicWrite(filepath.Join(cfg.StackDir, "loki", "loki-config.yml"), []byte(LokiConfig()), 0644); err != nil {
 		return err
 	}
-	if err := fsutil.AtomicWrite(filepath.Join(cfg.StackDir, "alloy", "config.alloy"), []byte(AlloyConfig()), 0640); err != nil {
+	if err := fsutil.AtomicWrite(filepath.Join(cfg.StackDir, "alloy", "config.alloy"), []byte(AlloyConfig()), 0644); err != nil {
 		return err
 	}
 
