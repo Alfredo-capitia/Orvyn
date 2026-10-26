@@ -64,8 +64,9 @@ func initialModel() model {
 	}
 	t := table.New(table.WithColumns(columns), table.WithFocused(true), table.WithHeight(10))
 	s := table.DefaultStyles()
-	s.Header = s.Header.BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("39")).BorderBottom(true).Bold(true)
-	s.Selected = s.Selected.Foreground(lipgloss.Color("229")).Background(lipgloss.Color("39")).Bold(false)
+	s.Header = s.Header.BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("39")).BorderBottom(true).Bold(true).Foreground(lipgloss.Color("39"))
+	s.Selected = s.Selected.Foreground(lipgloss.Color("255")).Background(lipgloss.Color("39")).Bold(true)
+	s.Cell = s.Cell.Foreground(lipgloss.Color("252"))
 	t.SetStyles(s)
 
 	vp := viewport.New(80, 16)
@@ -372,29 +373,29 @@ func (m model) View() string {
 		return fmt.Sprintf("Error: %v\n\nPress q to quit", m.err)
 	}
 
-	header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("ORVYN")
-	sub := lipgloss.NewStyle().Faint(true).Render(" | k9s-style terminal dashboard")
+	header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("51")).Render("ORVYN")
+	sub := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(" | k9s-style terminal dashboard")
 	title := header + sub
 
-	tabs := []string{"[1/Tab] Overview", "[l] Logs", "[m/Tab] Metrics", "[?] Help"}
+	tabs := []string{"[1] Overview", "[2] Logs", "[3] Metrics", "[?] Help"}
 	var tabStrs []string
 	for i, t := range tabs {
 		if (i == 0 && m.view == viewOverview) || (i == 1 && m.view == viewLogs) || (i == 2 && m.view == viewMetrics) || (i == 3 && m.view == viewHelp) {
-			tabStrs = append(tabStrs, lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render(t))
+			tabStrs = append(tabStrs, lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("51")).Background(lipgloss.Color("237")).Padding(0, 1).Render(t))
 		} else {
-			tabStrs = append(tabStrs, lipgloss.NewStyle().Faint(true).Render(t))
+			tabStrs = append(tabStrs, lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Background(lipgloss.Color("235")).Padding(0, 1).Render(t))
 		}
 	}
-	tabBar := strings.Join(tabStrs, "  ")
+	tabBar := lipgloss.JoinHorizontal(lipgloss.Top, tabStrs...)
 
 	if m.view == viewOverview {
-		help := lipgloss.NewStyle().Faint(true).Render("↑/↓ • /: filter • esc: clear • l: logs • m: metrics • r: refresh • tab: switch • ?: help • q: quit")
+		help := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render("↑/↓ • /: filter • Esc: clear • l: logs • m: metrics • r: refresh • Tab: switch • ?: help • q: quit")
 		base := fmt.Sprintf("%s\n%s\n\n%s\n\n%s\n", title, tabBar, m.table.View(), help)
 		if m.filtering {
-			filterBar := lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Render(m.filterInput.View())
+			filterBar := lipgloss.NewStyle().Foreground(lipgloss.Color("51")).Render(m.filterInput.View())
 			base = fmt.Sprintf("%s\n%s\n", base, filterBar)
 		} else if m.filterActive && m.filterQuery != "" {
-			filterBar := lipgloss.NewStyle().Faint(true).Render(fmt.Sprintf("Filter: %s (%d/%d)", m.filterQuery, len(m.filtered), len(m.containers)))
+			filterBar := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(fmt.Sprintf("Filter: %s (%d/%d)", m.filterQuery, len(m.filtered), len(m.containers)))
 			base = fmt.Sprintf("%s\n%s\n", base, filterBar)
 		}
 		return base
