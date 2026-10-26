@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -26,17 +27,22 @@ const (
 type model struct {
 	table      table.Model
 	viewport   viewport.Model
-	mtable     table.Model
-	containers []docker.Container
-	logs       []string
-	view       viewState
-	hostm      HostMetrics
-	contm      []ContMetrics
-	err        error
-	width      int
-	height     int
-	ready      bool
-	dc         *docker.Client
+	mtable       table.Model
+	containers   []docker.Container
+	filtered     []docker.Container
+	logs         []string
+	view         viewState
+	hostm        HostMetrics
+	contm        []ContMetrics
+	err          error
+	width        int
+	height       int
+	ready        bool
+	dc           *docker.Client
+	filterInput  textinput.Model
+	filtering    bool
+	filterActive bool
+	filterQuery  string
 }
 
 type tickMsg time.Time
@@ -72,11 +78,18 @@ func initialModel() model {
 	mt := table.New(table.WithColumns(mcols), table.WithFocused(false), table.WithHeight(10))
 	mt.SetStyles(s)
 
+	ti := textinput.New()
+	ti.Prompt = "/ "
+	ti.Placeholder = "filter by name or service..."
+	ti.CharLimit = 64
+	ti.Width = 50
+
 	return model{
-		table:    t,
-		viewport: vp,
-		mtable:   mt,
-		view:     viewOverview,
+		table:       t,
+		viewport:    vp,
+		mtable:      mt,
+		view:        viewOverview,
+		filterInput: ti,
 	}
 }
 
