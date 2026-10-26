@@ -165,6 +165,47 @@ func (m model) getList() []docker.Container {
 	return m.containers
 }
 
+func (m model) buildDetails() {
+	list := m.getList()
+	if len(list) == 0 {
+		list = m.containers
+	}
+	if len(list) == 0 {
+		m.details = []table.Row{}
+		m.dtable.SetRows(m.details)
+		return
+	}
+	idx := m.table.Cursor()
+	if idx < 0 || idx >= len(list) {
+		idx = 0
+	}
+	ct := list[idx]
+	name := ct.Names[0]
+	if len(name) > 0 && name[0] == '/' {
+		name = name[1:]
+	}
+	svc := ct.Labels["com.orvyn.service"]
+	if svc == "" {
+		svc = "-"
+	}
+	comp := ct.Labels["com.docker.compose.project"]
+	if comp == "" {
+		comp = "-"
+	}
+	rows := []table.Row{
+		{"Name", name},
+		{"Service", svc},
+		{"Compose Project", comp},
+		{"ID", ct.ID},
+		{"Image", ct.Image},
+		{"State", ct.State},
+		{"Status", ct.Status},
+		{"Managed", ct.Labels["com.orvyn.managed"]},
+	}
+	m.details = rows
+	m.dtable.SetRows(rows)
+}
+
 func tickCmd() tea.Cmd {
 	return tea.Tick(3*time.Second, func(t time.Time) tea.Msg { return tickMsg(t) })
 }
@@ -298,11 +339,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.view = viewMetrics
 				cmds = append(cmds, metricsCmd())
 			} else if m.view == viewMetrics {
+				m.view = viewDetails
+			} else if m.view == viewDetails {
 				m.view = viewOverview
 			} else if m.view == viewHelp {
 				m.view = viewOverview
 			}
 			return m, tea.Batch(cmds...)
+		case "d":
+			if m.view == viewOverview {
+				m.view = viewDetails
+				m.buildDetails()
+				return m, nil
+			} else if m.view == viewDetails {
+				m.view = viewOverview
+				return m, nil
+			}
 		case "?":
 			if m.view == viewHelp {
 				m.view = viewOverview
