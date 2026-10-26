@@ -272,14 +272,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func b2mb(b uint64) string {
-	return fmt.Sprintf("%.1fGB", float64(b)/1024/1024/1024)
-}
-
-func b2mbused(b uint64) string {
-	return fmt.Sprintf("%.1fGB", float64(b)/1024/1024/1024)
-}
-
 func (m model) View() string {
 	if m.err != nil {
 		return fmt.Sprintf("Error: %v\n\nPress q to quit", m.err)
@@ -336,7 +328,7 @@ func (m model) View() string {
 		host := lipgloss.NewStyle().Bold(true).Render("HOST") + "\n"
 		host += fmt.Sprintf("  Load: %.2f   Uptime: %s\n", h.CPULoad1, h.Uptime)
 		host += fmt.Sprintf("  RAM:   %.1fGB / %.1fGB (%.1f%%) used\n", float64(h.MemUsed)/1024/1024/1024, float64(h.MemTotal)/1024/1024/1024, memPct)
-		host += fmt.Sprintf("  DISK:  %.1fGB / %.1fGB (%.1f%%) used  (/) \n", float64(h.DiskUsed)/1024/1024/1024, float64(h.DiskTotal)/1024/1024/1024, diskPct)
+		host += fmt.Sprintf("  DISK:  %.1fGB / %.1fGB (%.1f%%) used  (/)\n", float64(h.DiskUsed)/1024/1024/1024, float64(h.DiskTotal)/1024/1024/1024, diskPct)
 		ctitle := lipgloss.NewStyle().Bold(true).Render("\nCONTAINERS (managed)")
 		help := lipgloss.NewStyle().Faint(true).Render("r: refresh • o: overview • l: logs • tab: switch • q: quit")
 		return fmt.Sprintf("%s\n%s\n\n%s\n%s\n\n%s\n\n%s\n", title, tabBar, host, ctitle, m.mtable.View(), help)
