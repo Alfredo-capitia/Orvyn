@@ -10,10 +10,8 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/fredy-arias/orvyn/internal/config"
 	"github.com/fredy-arias/orvyn/internal/discovery"
 	"github.com/fredy-arias/orvyn/internal/docker"
-	"github.com/fredy-arias/orvyn/internal/executil"
 )
 
 type viewState int
@@ -21,64 +19,73 @@ type viewState int
 const (
 	viewOverview viewState = iota
 	viewLogs
+	viewMetrics
 	viewHelp
 )
 
 type model struct {
 	table      table.Model
 	viewport   viewport.Model
+	mtable     table.Model
 	containers []docker.Container
 	logs       []string
 	view       viewState
+	hostm      HostMetrics
+	contm      []ContMetrics
 	err        error
 	width      int
 	height     int
 	ready      bool
-	statusMsg  string
-	confirming bool
-	action     string
-	actionSvc  string
+	dc         *docker.Client
 }
 
 type tickMsg time.Time
 type refreshMsg []docker.Container
 type logsMsg []string
-type errMsg error
-type actionMsg struct {
-	msg string
-	err error
+type metricsMsg struct {
+	host HostMetrics
+	cont []ContMetrics
 }
-type clearMsg struct{}
+type errMsg error
 
 func initialModel() model {
 	columns := []table.Column{
 		{Title: "NAME", Width: 22},
 		{Title: "SERVICE", Width: 14},
-		{Title: "STATUS", Width: 28},
+		{Title: "STATUS", Width: 24},
 		{Title: "STATE", Width: 10},
 		{Title: "HEALTH", Width: 10},
 	}
-	t := table.New(table.WithColumns(columns), table.WithFocused(true), table.WithHeight(12))
+	t := table.New(table.WithColumns(columns), table.WithFocused(true), table.WithHeight(10))
 	s := table.DefaultStyles()
 	s.Header = s.Header.BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("39")).BorderBottom(true).Bold(true)
 	s.Selected = s.Selected.Foreground(lipgloss.Color("229")).Background(lipgloss.Color("39")).Bold(false)
 	t.SetStyles(s)
 
-	vp := viewport.New(80, 20)
+	vp := viewport.New(80, 16)
+
+	mcols := []table.Column{
+		{Title: "NAME", Width: 22},
+		{Title: "CPU", Width: 12},
+		{Title: "MEMORY", Width: 24},
+	}
+	mt := table.New(table.WithColumns(mcols), table.WithFocused(false), table.WithHeight(10))
+	mt.SetStyles(s)
 
 	return model{
 		table:    t,
 		viewport: vp,
+		mtable:   mt,
 		view:     viewOverview,
 	}
 }
 
 func (m model) Init() tea.Cmd {
-	return tea.Batch(tickCmd(), refreshCmd())
+	return tea.Batch(tickCmd(), refreshCmd(), metricsCmd())
 }
 
 func tickCmd() tea.Cmd {
-	return tea.Tick(4*time.Second, func(t time.Time) tea.Msg { return tickMsg(t) })
+	return tea.Tick(3*time.Second, func(t time.Time) tea.Msg { return tickMsg(t) })
 }
 
 func refreshCmd() tea.Cmd {
@@ -93,47 +100,14 @@ func refreshCmd() tea.Cmd {
 	}
 }
 
-func clearStatusCmd() tea.Cmd {
-	return tea.Tick(3*time.Second, func(t time.Time) tea.Msg { return clearMsg{} })
-}
-
-func (m model) doAction(action string) tea.Cmd {
-	if len(m.containers) == 0 {
-		return nil
-	}
-	idx := m.table.Cursor()
-	if idx < 0 || idx >= len(m.containers) {
-		idx = 0
-	}
-	ct := m.containers[idx]
-	name := ct.Names[0]
-	if len(name) > 0 && name[0] == '/' {
-		name = name[1:]
-	}
-	svc := ct.Labels["com.orvyn.service"]
-	if svc == "" {
-		svc = name
-	}
-	cfg := config.Default()
+func metricsCmd() tea.Cmd {
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
-		defer cancel()
-		var out []byte
-		var err error
-		switch action {
-		case "start":
-			out, err = executil.RunWithTimeout(ctx, 120*time.Second, "docker", "compose", "-f", cfg.StackCompose(), "start", svc)
-		case "stop":
-			out, err = executil.RunWithTimeout(ctx, 120*time.Second, "docker", "compose", "-f", cfg.StackCompose(), "stop", svc)
-		case "restart":
-			out, err = executil.RunWithTimeout(ctx, 180*time.Second, "docker", "compose", "-f", cfg.StackCompose(), "restart", svc)
-		default:
-			return actionMsg{msg: "", err: fmt.Errorf("unknown action")}
-		}
+		dc, err := docker.New()
 		if err != nil {
-			return actionMsg{msg: string(out), err: err}
+			return metricsMsg{host: getHostMetrics(), cont: []ContMetrics{}}
 		}
-		return actionMsg{msg: fmt.Sprintf("[%s] %s done", strings.ToUpper(action), svc), err: nil}
+		defer dc.Close()
+		return metricsMsg{host: getHostMetrics(), cont: getContainerMetrics(dc)}
 	}
 }
 
@@ -170,8 +144,8 @@ func (m model) fetchLogs() tea.Cmd {
 		}
 		raw := string(buf[:n])
 		lines := strings.Split(strings.ReplaceAll(raw, "\r\n", "\n"), "\n")
-		if len(lines) > 80 {
-			lines = lines[len(lines)-80:]
+		if len(lines) > 100 {
+			lines = lines[len(lines)-100:]
 		}
 		return logsMsg(lines)
 	}
@@ -180,26 +154,6 @@ func (m model) fetchLogs() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
-
-	if m.confirming {
-		switch msg := msg.(type) {
-		case tea.KeyMsg:
-			if msg.String() == "y" || msg.String() == "Y" {
-				m.confirming = false
-				m.statusMsg = fmt.Sprintf("[%s] running...", strings.ToUpper(m.action))
-				cmds = append(cmds, m.doAction(m.action))
-				return m, tea.Batch(cmds...)
-			}
-			if msg.String() == "n" || msg.String() == "N" || msg.String() == "q" || msg.String() == "esc" {
-				m.confirming = false
-				m.statusMsg = "cancelled"
-				cmds = append(cmds, clearStatusCmd())
-				return m, tea.Batch(cmds...)
-			}
-			return m, nil
-		}
-		return m, nil
-	}
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -211,49 +165,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds = append(cmds, refreshCmd())
 			} else if m.view == viewLogs {
 				cmds = append(cmds, m.fetchLogs())
+			} else if m.view == viewMetrics {
+				cmds = append(cmds, metricsCmd())
 			}
 			return m, tea.Batch(cmds...)
-		case "s":
-			if m.view == viewOverview && len(m.containers) > 0 {
-				idx := m.table.Cursor()
-				if idx >= 0 && idx < len(m.containers) {
-					ct := m.containers[idx]
-					if ct.State == "running" {
-						m.action = "stop"
-					} else {
-						m.action = "start"
-					}
-					name := ct.Names[0]
-					if len(name) > 0 && name[0] == '/' {
-						name = name[1:]
-					}
-					m.actionSvc = name
-					m.confirming = true
-					m.statusMsg = fmt.Sprintf("Confirm %s %s? (y/n)", m.action, m.actionSvc)
-					return m, nil
-				}
-			}
-		case "R":
-			if m.view == viewOverview && len(m.containers) > 0 {
-				idx := m.table.Cursor()
-				if idx >= 0 && idx < len(m.containers) {
-					ct := m.containers[idx]
-					m.action = "restart"
-					name := ct.Names[0]
-					if len(name) > 0 && name[0] == '/' {
-						name = name[1:]
-					}
-					m.actionSvc = name
-					m.confirming = true
-					m.statusMsg = fmt.Sprintf("Confirm restart %s? (y/n)", m.actionSvc)
-					return m, nil
-				}
-			}
 		case "tab":
 			if m.view == viewOverview {
 				m.view = viewLogs
 				cmds = append(cmds, m.fetchLogs())
 			} else if m.view == viewLogs {
+				m.view = viewMetrics
+				cmds = append(cmds, metricsCmd())
+			} else if m.view == viewMetrics {
 				m.view = viewOverview
 			} else if m.view == viewHelp {
 				m.view = viewOverview
@@ -272,6 +195,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds = append(cmds, m.fetchLogs())
 				return m, tea.Batch(cmds...)
 			}
+		case "m":
+			m.view = viewMetrics
+			cmds = append(cmds, metricsCmd())
+			return m, tea.Batch(cmds...)
 		case "o":
 			m.view = viewOverview
 			return m, nil
@@ -281,15 +208,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.table.SetWidth(msg.Width)
 		m.table.SetHeight(msg.Height - 10)
+		m.mtable.SetWidth(msg.Width)
+		m.mtable.SetHeight(msg.Height - 18)
 		m.viewport.Width = msg.Width - 4
 		m.viewport.Height = msg.Height - 12
 		m.ready = true
 		return m, nil
 	case tickMsg:
+		cmds = append(cmds, tickCmd())
 		if m.view == viewOverview {
-			cmds = append(cmds, tickCmd(), refreshCmd())
-		} else {
-			cmds = append(cmds, tickCmd())
+			cmds = append(cmds, refreshCmd())
+		}
+		if m.view == viewMetrics {
+			cmds = append(cmds, metricsCmd())
 		}
 		return m, tea.Batch(cmds...)
 	case refreshMsg:
@@ -316,16 +247,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.logs = []string(msg)
 		m.viewport.SetContent(strings.Join(m.logs, "\n"))
 		return m, nil
-	case actionMsg:
-		if msg.err != nil {
-			m.statusMsg = fmt.Sprintf("ERR: %v", msg.err)
-		} else {
-			m.statusMsg = msg.msg
+	case metricsMsg:
+		m.hostm = msg.host
+		m.contm = msg.cont
+		rows := []table.Row{}
+		for _, cm := range m.contm {
+			rows = append(rows, table.Row{cm.Name, cm.CPU, cm.Mem})
 		}
-		cmds = append(cmds, clearStatusCmd(), refreshCmd())
-		return m, tea.Batch(cmds...)
-	case clearMsg:
-		m.statusMsg = ""
+		m.mtable.SetRows(rows)
 		return m, nil
 	case errMsg:
 		m.err = error(msg)
@@ -352,10 +281,10 @@ func (m model) View() string {
 	sub := lipgloss.NewStyle().Faint(true).Render(" | k9s-style terminal dashboard")
 	title := header + sub
 
-	tabs := []string{"[1/Tab] Overview", "[l] Logs", "[?] Help"}
+	tabs := []string{"[1/Tab] Overview", "[l] Logs", "[m/Tab] Metrics", "[?] Help"}
 	var tabStrs []string
 	for i, t := range tabs {
-		if (i == 0 && m.view == viewOverview) || (i == 1 && m.view == viewLogs) || (i == 2 && m.view == viewHelp) {
+		if (i == 0 && m.view == viewOverview) || (i == 1 && m.view == viewLogs) || (i == 2 && m.view == viewMetrics) || (i == 3 && m.view == viewHelp) {
 			tabStrs = append(tabStrs, lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render(t))
 		} else {
 			tabStrs = append(tabStrs, lipgloss.NewStyle().Faint(true).Render(t))
@@ -364,17 +293,8 @@ func (m model) View() string {
 	tabBar := strings.Join(tabStrs, "  ")
 
 	if m.view == viewOverview {
-		help := lipgloss.NewStyle().Faint(true).Render("↑/↓ • s: start/stop • R: restart • l: logs • r: refresh • tab: switch • ?: help • q: quit")
-		base := fmt.Sprintf("%s\n%s\n\n%s\n\n%s\n", title, tabBar, m.table.View(), help)
-		if m.statusMsg != "" {
-			status := lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Render(m.statusMsg)
-			base = fmt.Sprintf("%s\n%s\n", base, status)
-		}
-		if m.confirming {
-			conf := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("226")).Render(m.statusMsg)
-			base = fmt.Sprintf("%s\n%s\n", base, conf)
-		}
-		return base
+		help := lipgloss.NewStyle().Faint(true).Render("↑/↓ navigate • l: logs • m: metrics • r: refresh • tab: switch • ?: help • q: quit")
+		return fmt.Sprintf("%s\n%s\n\n%s\n\n%s\n", title, tabBar, m.table.View(), help)
 	}
 
 	if m.view == viewLogs {
@@ -391,27 +311,46 @@ func (m model) View() string {
 			}
 		}
 		logTitle := lipgloss.NewStyle().Bold(true).Render(fmt.Sprintf("Logs: %s (tail)", svc))
-		help := lipgloss.NewStyle().Faint(true).Render("↑/↓/pgup/pgdn scroll • r: refresh • o: overview • tab: switch • q: quit")
+		help := lipgloss.NewStyle().Faint(true).Render("↑/↓/pgup/pgdn scroll • r: refresh • o: overview • m: metrics • tab: switch • q: quit")
 		return fmt.Sprintf("%s\n%s\n\n%s\n\n%s\n\n%s\n", title, tabBar, logTitle, m.viewport.View(), help)
+	}
+
+	if m.view == viewMetrics {
+		h := m.hostm
+		memPct := 0.0
+		if h.MemTotal > 0 {
+			memPct = float64(h.MemUsed) / float64(h.MemTotal) * 100.0
+		}
+		diskPct := 0.0
+		if h.DiskTotal > 0 {
+			diskPct = float64(h.DiskUsed) / float64(h.DiskTotal) * 100.0
+		}
+		host := lipgloss.NewStyle().Bold(true).Render("HOST") + "\n"
+		host += fmt.Sprintf("  Load: %.2f   Uptime: %s\n", h.CPULoad1, h.Uptime)
+		host += fmt.Sprintf("  RAM:   %.1fGB / %.1fGB (%.1f%%) used\n", float64(h.MemUsed)/1024/1024/1024, float64(h.MemTotal)/1024/1024/1024, memPct)
+		host += fmt.Sprintf("  DISK:  %.1fGB / %.1fGB (%.1f%%) used  (/)\n", float64(h.DiskUsed)/1024/1024/1024, float64(h.DiskTotal)/1024/1024/1024, diskPct)
+		ctitle := lipgloss.NewStyle().Bold(true).Render("\nCONTAINERS (managed)")
+		help := lipgloss.NewStyle().Faint(true).Render("r: refresh • o: overview • l: logs • tab: switch • q: quit")
+		return fmt.Sprintf("%s\n%s\n\n%s\n%s\n\n%s\n\n%s\n", title, tabBar, host, ctitle, m.mtable.View(), help)
 	}
 
 	if m.view == viewHelp {
 		helpText := `KEYBINDS
 
   ↑/↓        Navigate
-  Tab / o    Switch views
+  Tab        Cycle views (Overview → Logs → Metrics → Help)
   l          View logs for selected service
-  s          Start/Stop selected service (toggle)
-  Shift+R    Restart selected service
+  m          View metrics (host + containers)
   r          Refresh
   ?          Toggle help
+  o          Back to overview
   q / Ctrl+C Quit
 
 INFO
 
   Orvyn Dashboard - Manage your isolated observability stack
   Only shows containers with com.orvyn.managed=true
-  Actions use docker compose from stack directory`
+  Metrics collected from /proc and Docker API`
 		help := lipgloss.NewStyle().Faint(true).Render("Press ? or Tab to return")
 		return fmt.Sprintf("%s\n%s\n\n%s\n\n%s\n", title, tabBar, helpText, help)
 	}
