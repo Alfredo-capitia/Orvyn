@@ -22,7 +22,7 @@ import (
 var applyCmd = &cobra.Command{
 	Use:   "apply",
 	Short: "Apply the planned configuration",
-	Long:  "Applies changes only after explicit confirmation. Creates backups before modifications.",
+	Long:  "Applies changes only after explicit confirmation.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		cfg := config.Default()

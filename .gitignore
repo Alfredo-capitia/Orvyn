@@ -46,3 +46,6 @@ config.local.yaml
 
 # Logs
 *.log
+
+# Built binary (see Makefile / go build ./cmd/orvyn)
+/orvyn

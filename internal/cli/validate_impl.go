@@ -11,6 +11,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var validateCmd = &cobra.Command{
+	Use:   "validate",
+	Short: "Validate observability stack health",
+}
+
 func validateCmdRun(cmd *cobra.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()

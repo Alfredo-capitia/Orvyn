@@ -119,6 +119,7 @@ orvyn logs alloy -f
 | `orvyn doctor` | Comprehensive diagnostics: Docker, compose, paths, managed stack, endpoints |
 | `orvyn info` | Quick overview of Orvyn paths and managed container count |
 | `orvyn config` | Show resolved configuration paths for current user/root context |
+| `orvyn dashboard` | Open the interactive terminal dashboard (Overview, Logs, Metrics, Details, Help) |
 
 ### Maintenance & Utilities
 
