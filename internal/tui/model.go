@@ -421,29 +421,48 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds = append(cmds, metricsCmd())
 			} else if m.view == viewMetrics {
 				m.view = viewOverview
+				m.table.Focus()
+				m.mtable.Blur()
 			} else if m.view == viewHelp {
 				m.view = viewOverview
+				m.table.Focus()
+				m.mtable.Blur()
 			}
 			return m, tea.Batch(cmds...)
 		case "?":
 			if m.view == viewHelp {
 				m.view = viewOverview
+				m.table.Focus()
+				m.mtable.Blur()
 			} else {
 				m.view = viewHelp
+				m.table.Blur()
+				m.mtable.Blur()
 			}
 			return m, nil
 		case "l":
 			if m.view == viewOverview {
 				m.view = viewLogs
+				m.table.Blur()
+				m.mtable.Blur()
 				cmds = append(cmds, m.fetchLogs())
 				return m, tea.Batch(cmds...)
 			}
 		case "m":
 			m.view = viewMetrics
+			m.table.Blur()
+			m.mtable.Focus()
 			cmds = append(cmds, metricsCmd())
 			return m, tea.Batch(cmds...)
 		case "o":
 			m.view = viewOverview
+			m.table.Focus()
+			m.mtable.Blur()
+			if m.filterActive && m.filterQuery == "" {
+				m.filterActive = false
+				m.filterInput.SetValue("")
+				m.applyFilter()
+			}
 			return m, nil
 		}
 	case tea.WindowSizeMsg:
