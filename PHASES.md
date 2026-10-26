@@ -42,20 +42,70 @@
 - [x] Gerar ações detalhadas
 - [x] Identificar backups necessários
 - [x] Integrar com orvyn plan
+- [x] Plan state-aware (mostra `ok` quando não há alterações)
 
-## Fase 6: Stack Generation & Apply [IN PROGRESS]
-- [ ] internal/stack/generate.go - Gerar docker-compose para stack mínima
-- [ ] Stack isolada em /opt/orvyn/stack/
-- [ ] Confirmação interativa obrigatória
-- [ ] Backups automáticos
-- [ ] Criar diretórios com permissões corretas
-- [ ] Aplicar via docker compose
-- [ ] Audit log
-- [ ] Integrar com orvyn apply
+## Fase 6: Stack Generation & Apply [COMPLETED]
+- [x] internal/stack/generate.go - Gerar docker-compose para stack mínima
+- [x] Stack isolada em paths user-local ou system (UID-aware)
+- [x] Confirmação interativa obrigatória
+- [x] Backups automáticos
+- [x] Criar diretórios com permissões corretas
+- [x] Aplicar via docker compose
+- [x] Audit log
+- [x] Integrar com orvyn apply
+- [x] Imagens pinadas (sem `:latest`)
+- [x] Limites de recursos host-aware (mem_limit, cpus, pids_limit)
+- [x] Apply session tracking com recuperação de falhas parciais
 
-## Fase 7: Validate & Status [PENDING]
-- [ ] internal/validate/checks.go
-- [ ] Verificar containers UP
-- [ ] Verificar targets Prometheus
-- [ ] Verificar Loki
-- [ ] Integrar orvyn validate e orvyn status
+## Fase 7: Validate & Status [COMPLETED]
+- [x] internal/validate/preflight.go
+- [x] Verificar containers UP
+- [x] Verificar targets Prometheus
+- [x] Verificar Loki
+- [x] Integrar orvyn validate e orvyn status
+- [x] Health via `docker inspect` (healthcheck status)
+- [x] orvyn doctor e orvyn info
+
+## Fase 8: Lifecycle & Service Control [COMPLETED]
+- [x] orvyn up (idempotente) e orvyn ps
+- [x] orvyn start / stop / restart (stack inteira ou serviço)
+- [x] orvyn down / rm (volumes preservados por default)
+- [x] orvyn uninstall (confirmação + --force/--volumes)
+- [x] orvyn exec em containers geridos
+- [x] Label-based targeting (`com.orvyn.managed=true`)
+
+## Fase 9: Maintenance [COMPLETED]
+- [x] orvyn prune
+- [x] orvyn upgrade
+- [ ] Backup real + `orvyn restore` (planeado, ainda não implementado — ver nota abaixo)
+
+## Fase 10: Hardening de Segurança [COMPLETED]
+- [x] executil allowlist para todas as chamadas externas
+- [x] Prometheus/Loki ligados apenas a 127.0.0.1
+- [x] Redaction aplicada em logs e audit
+- [x] Fluxos destrutivos com confirmação explícita
+- [x] Paths user-local por omissão (UID-aware)
+
+## Fase 11: CI/CD [COMPLETED]
+- [x] Permissões mínimas (`contents: read`)
+- [x] Actions pinadas por SHA
+- [x] `concurrency` com cancel-in-progress
+- [x] `timeout-minutes` por job
+- [x] gofmt, vet, build, test
+- [x] staticcheck (não bloqueante)
+- [ ] govulncheck - suspenso até existir correção para GO-2026-4887/GO-2026-4883 (docker/docker v28.5.2)
+
+## Fase 12: TUI Dashboard [COMPLETED]
+- [x] internal/tui - Bubble Tea / Lip Gloss / Bubbles
+- [x] Views: Overview, Logs, Metrics, Details, Help
+- [x] Filtro incremental (`/`)
+- [x] Ações rápidas: start / stop / restart com confirmação
+- [x] Métricas de host (`/proc`) e de containers (Docker stats)
+- [x] Health cache via `docker inspect`
+- [x] Navegação por teclado estilo k9s
+
+## Próximos passos
+- [ ] Implementar backup em `apply` e comando `orvyn restore` (hoje `apply` anuncia que cria backups mas não cria)
+- [ ] Reintroduzir `govulncheck` scoped (`./cmd/... ./internal/... ./pkg/...`) quando docker/docker tiver correção
+- [ ] Testes de integração para o TUI e para `internal/docker`
+- [ ] Exportar métricas do próprio Orvyn (opcional)
