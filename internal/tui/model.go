@@ -7,11 +7,14 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/fredy-arias/orvyn/internal/config"
 	"github.com/fredy-arias/orvyn/internal/discovery"
 	"github.com/fredy-arias/orvyn/internal/docker"
+	"github.com/fredy-arias/orvyn/internal/executil"
 )
 
 type viewState int
@@ -24,19 +27,28 @@ const (
 )
 
 type model struct {
-	table      table.Model
-	viewport   viewport.Model
-	mtable     table.Model
-	containers []docker.Container
-	logs       []string
-	view       viewState
-	hostm      HostMetrics
-	contm      []ContMetrics
-	err        error
-	width      int
-	height     int
-	ready      bool
-	dc         *docker.Client
+	table        table.Model
+	viewport     viewport.Model
+	mtable       table.Model
+	containers   []docker.Container
+	filtered     []docker.Container
+	logs         []string
+	view         viewState
+	hostm        HostMetrics
+	contm        []ContMetrics
+	err          error
+	width        int
+	height       int
+	ready        bool
+	dc           *docker.Client
+	statusMsg    string
+	confirming   bool
+	action       string
+	actionSvc    string
+	filterInput  textinput.Model
+	filtering    bool
+	filterActive bool
+	filterQuery  string
 }
 
 type tickMsg time.Time
@@ -47,12 +59,17 @@ type metricsMsg struct {
 	cont []ContMetrics
 }
 type errMsg error
+type actionMsg struct {
+	msg string
+	err error
+}
+type clearMsg struct{}
 
 func initialModel() model {
 	columns := []table.Column{
 		{Title: "NAME", Width: 22},
 		{Title: "SERVICE", Width: 14},
-		{Title: "STATUS", Width: 24},
+		{Title: "STATUS", Width: 28},
 		{Title: "STATE", Width: 10},
 		{Title: "HEALTH", Width: 10},
 	}
@@ -72,11 +89,17 @@ func initialModel() model {
 	mt := table.New(table.WithColumns(mcols), table.WithFocused(false), table.WithHeight(10))
 	mt.SetStyles(s)
 
+	ti := textinput.New()
+	ti.Placeholder = "filter by name or service..."
+	ti.CharLimit = 64
+	ti.Width = 40
+
 	return model{
-		table:    t,
-		viewport: vp,
-		mtable:   mt,
-		view:     viewOverview,
+		table:       t,
+		viewport:    vp,
+		mtable:      mt,
+		view:        viewOverview,
+		filterInput: ti,
 	}
 }
 
@@ -100,6 +123,10 @@ func refreshCmd() tea.Cmd {
 	}
 }
 
+func clearStatusCmd() tea.Cmd {
+	return tea.Tick(3*time.Second, func(t time.Time) tea.Msg { return clearMsg{} })
+}
+
 func metricsCmd() tea.Cmd {
 	return func() tea.Msg {
 		dc, err := docker.New()
@@ -111,15 +138,120 @@ func metricsCmd() tea.Cmd {
 	}
 }
 
-func (m model) fetchLogs() tea.Cmd {
-	if len(m.containers) == 0 {
+func (m model) getList() []docker.Container {
+	if m.filterActive && m.filterQuery != "" {
+		if len(m.filtered) > 0 {
+			return m.filtered
+		}
+		return []docker.Container{}
+	}
+	return m.containers
+}
+
+func (m model) applyFilter() {
+	if !m.filterActive || m.filterQuery == "" {
+		m.filtered = nil
+		rows := []table.Row{}
+		for _, ct := range m.containers {
+			name := ct.Names[0]
+			if len(name) > 0 && name[0] == '/' {
+				name = name[1:]
+			}
+			svc := ct.Labels["com.orvyn.service"]
+			if svc == "" {
+				svc = "-"
+			}
+			health := "-"
+			if ct.State == "running" {
+				health = "unknown"
+			}
+			rows = append(rows, table.Row{name, svc, ct.Status, ct.State, health})
+		}
+		m.table.SetRows(rows)
+		return
+	}
+	q := strings.ToLower(m.filterQuery)
+	filtered := []docker.Container{}
+	rows := []table.Row{}
+	for _, ct := range m.containers {
+		name := ct.Names[0]
+		if len(name) > 0 && name[0] == '/' {
+			name = name[1:]
+		}
+		svc := ct.Labels["com.orvyn.service"]
+		if svc == "" {
+			svc = "-"
+		}
+		if strings.Contains(strings.ToLower(name), q) || strings.Contains(strings.ToLower(svc), q) {
+			filtered = append(filtered, ct)
+			health := "-"
+			if ct.State == "running" {
+				health = "unknown"
+			}
+			rows = append(rows, table.Row{name, svc, ct.Status, ct.State, health})
+		}
+	}
+	m.filtered = filtered
+	m.table.SetRows(rows)
+}
+
+func (m model) doAction(action string) tea.Cmd {
+	list := m.getList()
+	if len(list) == 0 {
+		list = m.containers
+	}
+	if len(list) == 0 {
 		return nil
 	}
 	idx := m.table.Cursor()
-	if idx < 0 || idx >= len(m.containers) {
+	if idx < 0 || idx >= len(list) {
 		idx = 0
 	}
-	ct := m.containers[idx]
+	ct := list[idx]
+	name := ct.Names[0]
+	if len(name) > 0 && name[0] == '/' {
+		name = name[1:]
+	}
+	svc := ct.Labels["com.orvyn.service"]
+	if svc == "" {
+		svc = name
+	}
+	cfg := config.Default()
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+		defer cancel()
+		var out []byte
+		var err error
+		switch action {
+		case "start":
+			out, err = executil.RunWithTimeout(ctx, 120*time.Second, "docker", "compose", "-f", cfg.StackCompose(), "start", svc)
+		case "stop":
+			out, err = executil.RunWithTimeout(ctx, 120*time.Second, "docker", "compose", "-f", cfg.StackCompose(), "stop", svc)
+		case "restart":
+			out, err = executil.RunWithTimeout(ctx, 180*time.Second, "docker", "compose", "-f", cfg.StackCompose(), "restart", svc)
+		default:
+			return actionMsg{msg: "", err: fmt.Errorf("unknown action")}
+		}
+		if err != nil {
+			return actionMsg{msg: string(out), err: err}
+		}
+		return actionMsg{msg: fmt.Sprintf("[%s] %s done", strings.ToUpper(action), svc), err: nil}
+	}
+}
+
+func (m model) fetchLogs() tea.Cmd {
+	list := m.getList()
+	if len(list) == 0 {
+		list = m.containers
+	}
+	if len(list) == 0 {
+		return nil
+	}
+	idx := m.table.Cursor()
+	if idx < 0 || idx >= len(list) {
+		idx = 0
+	}
+	ct := list[idx]
 	id := ct.ID
 	if len(id) > 12 {
 		id = id[:12]
@@ -155,11 +287,73 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 
+	if m.filtering {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			if msg.String() == "enter" {
+				m.filtering = false
+				m.filterInput.Blur()
+				m.filterActive = true
+				m.filterQuery = m.filterInput.Value()
+				m.applyFilter()
+				return m, nil
+			}
+			if msg.String() == "esc" {
+				m.filtering = false
+				m.filterInput.Blur()
+				m.filterInput.SetValue("")
+				m.filterActive = false
+				m.filterQuery = ""
+				m.applyFilter()
+				return m, nil
+			}
+		}
+		m.filterInput, cmd = m.filterInput.Update(msg)
+		cmds = append(cmds, cmd)
+		return m, tea.Batch(cmds...)
+	}
+
+	if m.confirming {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			if msg.String() == "y" || msg.String() == "Y" {
+				m.confirming = false
+				m.statusMsg = fmt.Sprintf("[%s] running...", strings.ToUpper(m.action))
+				cmds = append(cmds, m.doAction(m.action))
+				return m, tea.Batch(cmds...)
+			}
+			if msg.String() == "n" || msg.String() == "N" || msg.String() == "q" || msg.String() == "esc" {
+				m.confirming = false
+				m.statusMsg = "cancelled"
+				cmds = append(cmds, clearStatusCmd())
+				return m, tea.Batch(cmds...)
+			}
+			return m, nil
+		}
+		return m, nil
+	}
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
+		case "/":
+			if m.view == viewOverview {
+				m.filtering = true
+				m.filterInput.Focus()
+				return m, textinput.Blink
+			}
+		case "esc":
+			if m.filterActive {
+				m.filterActive = false
+				m.filterQuery = ""
+				m.filterInput.SetValue("")
+				m.applyFilter()
+				m.statusMsg = "filter cleared"
+				cmds = append(cmds, clearStatusCmd())
+				return m, tea.Batch(cmds...)
+			}
 		case "r":
 			if m.view == viewOverview {
 				cmds = append(cmds, refreshCmd())
@@ -169,6 +363,54 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds = append(cmds, metricsCmd())
 			}
 			return m, tea.Batch(cmds...)
+		case "s":
+			if m.view == viewOverview {
+				list := m.getList()
+				if len(list) == 0 {
+					list = m.containers
+				}
+				if len(list) > 0 {
+					idx := m.table.Cursor()
+					if idx >= 0 && idx < len(list) {
+						ct := list[idx]
+						if ct.State == "running" {
+							m.action = "stop"
+						} else {
+							m.action = "start"
+						}
+						name := ct.Names[0]
+						if len(name) > 0 && name[0] == '/' {
+							name = name[1:]
+						}
+						m.actionSvc = name
+						m.confirming = true
+						m.statusMsg = fmt.Sprintf("Confirm %s %s? (y/n)", m.action, m.actionSvc)
+						return m, nil
+					}
+				}
+			}
+		case "R":
+			if m.view == viewOverview {
+				list := m.getList()
+				if len(list) == 0 {
+					list = m.containers
+				}
+				if len(list) > 0 {
+					idx := m.table.Cursor()
+					if idx >= 0 && idx < len(list) {
+						ct := list[idx]
+						m.action = "restart"
+						name := ct.Names[0]
+						if len(name) > 0 && name[0] == '/' {
+							name = name[1:]
+						}
+						m.actionSvc = name
+						m.confirming = true
+						m.statusMsg = fmt.Sprintf("Confirm restart %s? (y/n)", m.actionSvc)
+						return m, nil
+					}
+				}
+			}
 		case "tab":
 			if m.view == viewOverview {
 				m.view = viewLogs
@@ -207,11 +449,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.table.SetWidth(msg.Width)
-		m.table.SetHeight(msg.Height - 10)
+		m.table.SetHeight(msg.Height - 12)
 		m.mtable.SetWidth(msg.Width)
 		m.mtable.SetHeight(msg.Height - 18)
 		m.viewport.Width = msg.Width - 4
-		m.viewport.Height = msg.Height - 12
+		m.viewport.Height = msg.Height - 14
+		m.filterInput.Width = msg.Width - 20
 		m.ready = true
 		return m, nil
 	case tickMsg:
@@ -225,25 +468,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmds...)
 	case refreshMsg:
 		m.containers = []docker.Container(msg)
-		rows := []table.Row{}
-		for _, ct := range m.containers {
-			name := ct.Names[0]
-			if len(name) > 0 && name[0] == '/' {
-				name = name[1:]
-			}
-			svc := ct.Labels["com.orvyn.service"]
-			if svc == "" {
-				svc = "-"
-			}
-			health := "-"
-			if ct.State == "running" {
-				health = "unknown"
-			}
-			rows = append(rows, table.Row{name, svc, ct.Status, ct.State, health})
-		}
-		m.table.SetRows(rows)
+		m.applyFilter()
 		return m, nil
 	case logsMsg:
+		list := m.getList()
+		if len(list) == 0 {
+			list = m.containers
+		}
 		m.logs = []string(msg)
 		m.viewport.SetContent(strings.Join(m.logs, "\n"))
 		return m, nil
@@ -255,6 +486,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			rows = append(rows, table.Row{cm.Name, cm.CPU, cm.Mem})
 		}
 		m.mtable.SetRows(rows)
+		return m, nil
+	case actionMsg:
+		if msg.err != nil {
+			m.statusMsg = fmt.Sprintf("ERR: %v", msg.err)
+		} else {
+			m.statusMsg = msg.msg
+		}
+		cmds = append(cmds, clearStatusCmd(), refreshCmd())
+		return m, tea.Batch(cmds...)
+	case clearMsg:
+		m.statusMsg = ""
 		return m, nil
 	case errMsg:
 		m.err = error(msg)
@@ -293,16 +535,37 @@ func (m model) View() string {
 	tabBar := strings.Join(tabStrs, "  ")
 
 	if m.view == viewOverview {
-		help := lipgloss.NewStyle().Faint(true).Render("↑/↓ navigate • l: logs • m: metrics • r: refresh • tab: switch • ?: help • q: quit")
-		return fmt.Sprintf("%s\n%s\n\n%s\n\n%s\n", title, tabBar, m.table.View(), help)
+		help := lipgloss.NewStyle().Faint(true).Render("↑/↓ • /: filter • esc: clear • s: start/stop • R: restart • l: logs • r: refresh • tab: switch • ?: help • q: quit")
+		base := fmt.Sprintf("%s\n%s\n\n%s\n\n%s\n", title, tabBar, m.table.View(), help)
+		if m.filtering {
+			filterBar := lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Render("/ " + m.filterInput.View())
+			base = fmt.Sprintf("%s\n%s\n", base, filterBar)
+		} else if m.filterActive && m.filterQuery != "" {
+			filterBar := lipgloss.NewStyle().Faint(true).Render(fmt.Sprintf("Filter: %s (%d/%d)", m.filterQuery, len(m.filtered), len(m.containers)))
+			base = fmt.Sprintf("%s\n%s\n", base, filterBar)
+		}
+		if m.confirming {
+			conf := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("226")).Render(m.statusMsg)
+			base = fmt.Sprintf("%s\n%s\n", base, conf)
+			return base
+		}
+		if m.statusMsg != "" {
+			status := lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Render(m.statusMsg)
+			base = fmt.Sprintf("%s\n%s\n", base, status)
+		}
+		return base
 	}
 
 	if m.view == viewLogs {
+		list := m.getList()
+		if len(list) == 0 {
+			list = m.containers
+		}
 		var svc string
-		if len(m.containers) > 0 {
+		if len(list) > 0 {
 			idx := m.table.Cursor()
-			if idx >= 0 && idx < len(m.containers) {
-				ct := m.containers[idx]
+			if idx >= 0 && idx < len(list) {
+				ct := list[idx]
 				name := ct.Names[0]
 				if len(name) > 0 && name[0] == '/' {
 					name = name[1:]
@@ -330,7 +593,7 @@ func (m model) View() string {
 		host += fmt.Sprintf("  RAM:   %.1fGB / %.1fGB (%.1f%%) used\n", float64(h.MemUsed)/1024/1024/1024, float64(h.MemTotal)/1024/1024/1024, memPct)
 		host += fmt.Sprintf("  DISK:  %.1fGB / %.1fGB (%.1f%%) used  (/)\n", float64(h.DiskUsed)/1024/1024/1024, float64(h.DiskTotal)/1024/1024/1024, diskPct)
 		ctitle := lipgloss.NewStyle().Bold(true).Render("\nCONTAINERS (managed)")
-		help := lipgloss.NewStyle().Faint(true).Render("r: refresh • o: overview • l: logs • tab: switch • q: quit")
+		help := lipgloss.NewStyle().Faint(true).Render("r: refresh • o: overview • l: logs • /: filter • tab: switch • q: quit")
 		return fmt.Sprintf("%s\n%s\n\n%s\n%s\n\n%s\n\n%s\n", title, tabBar, host, ctitle, m.mtable.View(), help)
 	}
 
@@ -339,8 +602,12 @@ func (m model) View() string {
 
   ↑/↓        Navigate
   Tab        Cycle views (Overview → Logs → Metrics → Help)
+  /          Filter containers by name/service (Overview)
+  Esc        Clear filter
   l          View logs for selected service
   m          View metrics (host + containers)
+  s          Start/Stop selected service (toggle)
+  Shift+R    Restart selected service
   r          Refresh
   ?          Toggle help
   o          Back to overview
