@@ -230,6 +230,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
+		case "/":
+			if m.view == viewOverview {
+				m.filtering = true
+				m.filterInput.Focus()
+				return m, textinput.Blink
+			}
+		case "esc":
+			if m.view == viewOverview && m.filterActive {
+				m.filterActive = false
+				m.filterQuery = ""
+				m.filterInput.SetValue("")
+				m.applyFilter()
+				return m, nil
+			}
 		case "r":
 			if m.view == viewOverview {
 				cmds = append(cmds, refreshCmd())
