@@ -45,4 +45,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Known limitations
 
 - `govulncheck` is disabled in CI: GO-2026-4887 and GO-2026-4883 in `docker/docker v28.5.2` have no upstream fix yet
-- `apply` prints that it creates backups before modifying files, but backup creation is not implemented yet
+- Backup creation before modifications is not implemented yet, and there is no `restore` command
