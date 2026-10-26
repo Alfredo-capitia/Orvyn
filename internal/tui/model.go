@@ -442,8 +442,12 @@ func (m model) View() string {
 
   ↑/↓        Navigate
   Tab        Cycle views (Overview → Logs → Metrics → Help)
+  /          Filter containers by name/service (Overview)
+  Esc        Clear filter
   l          View logs for selected service
   m          View metrics (host + containers)
+  s          Start/Stop selected service (toggle)
+  Shift+R    Restart selected service
   r          Refresh
   ?          Toggle help
   o          Back to overview
