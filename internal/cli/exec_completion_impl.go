@@ -63,15 +63,14 @@ var execCmd = &cobra.Command{
 
 		fmt.Printf("[EXEC] %s\n", target)
 		dargs := []string{"exec"}
-		if isTerminal() && len(args) == 1 {
-			dargs = append(dargs, "-it")
-		} else if isTerminal() {
+		if isTerminal() {
 			dargs = append(dargs, "-it")
 		} else {
 			dargs = append(dargs, "-i")
 		}
 		dargs = append(dargs, id)
 		dargs = append(dargs, cmdArgs...)
+
 		dexec := exec.CommandContext(context.Background(), "docker", dargs...)
 		dexec.Stdin = os.Stdin
 		dexec.Stdout = os.Stdout
