@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -21,31 +20,23 @@ const (
 	viewOverview viewState = iota
 	viewLogs
 	viewMetrics
-	viewDetails
 	viewHelp
 )
 
 type model struct {
-	table        table.Model
-	viewport     viewport.Model
-	mtable       table.Model
-	dtable       table.Model
-	containers   []docker.Container
-	filtered     []docker.Container
-	logs         []string
-	view         viewState
-	hostm        HostMetrics
-	contm        []ContMetrics
-	err          error
-	width        int
-	height       int
-	ready        bool
-	dc           *docker.Client
-	filterInput  textinput.Model
-	filtering    bool
-	filterActive bool
-	filterQuery  string
-	details      []table.Row
+	table      table.Model
+	viewport   viewport.Model
+	mtable     table.Model
+	containers []docker.Container
+	logs       []string
+	view       viewState
+	hostm      HostMetrics
+	contm      []ContMetrics
+	err        error
+	width      int
+	height     int
+	ready      bool
+	dc         *docker.Client
 }
 
 type tickMsg time.Time
@@ -67,9 +58,8 @@ func initialModel() model {
 	}
 	t := table.New(table.WithColumns(columns), table.WithFocused(true), table.WithHeight(10))
 	s := table.DefaultStyles()
-	s.Header = s.Header.BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("39")).BorderBottom(true).Bold(true).Foreground(lipgloss.Color("39"))
-	s.Selected = s.Selected.Foreground(lipgloss.Color("255")).Background(lipgloss.Color("39")).Bold(true)
-	s.Cell = s.Cell.Foreground(lipgloss.Color("252"))
+	s.Header = s.Header.BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("39")).BorderBottom(true).Bold(true)
+	s.Selected = s.Selected.Foreground(lipgloss.Color("229")).Background(lipgloss.Color("39")).Bold(false)
 	t.SetStyles(s)
 
 	vp := viewport.New(80, 16)
@@ -82,129 +72,16 @@ func initialModel() model {
 	mt := table.New(table.WithColumns(mcols), table.WithFocused(false), table.WithHeight(10))
 	mt.SetStyles(s)
 
-	dcols := []table.Column{
-		{Title: "PROPERTY", Width: 20},
-		{Title: "VALUE", Width: 60},
-	}
-	dt := table.New(table.WithColumns(dcols), table.WithFocused(false), table.WithHeight(16))
-	dt.SetStyles(s)
-
-	ti := textinput.New()
-	ti.Prompt = "/ "
-	ti.Placeholder = "filter by name or service..."
-	ti.CharLimit = 64
-	ti.Width = 50
-
 	return model{
-		table:       t,
-		viewport:    vp,
-		mtable:      mt,
-		dtable:      dt,
-		view:        viewOverview,
-		filterInput: ti,
+		table:    t,
+		viewport: vp,
+		mtable:   mt,
+		view:     viewOverview,
 	}
 }
 
 func (m model) Init() tea.Cmd {
 	return tea.Batch(tickCmd(), refreshCmd(), metricsCmd())
-}
-
-func (m model) applyFilter() {
-	if !m.filterActive || m.filterQuery == "" {
-		m.filtered = nil
-		rows := []table.Row{}
-		for _, ct := range m.containers {
-			name := ct.Names[0]
-			if len(name) > 0 && name[0] == '/' {
-				name = name[1:]
-			}
-			svc := ct.Labels["com.orvyn.service"]
-			if svc == "" {
-				svc = "-"
-			}
-			health := "-"
-			if ct.State == "running" {
-				health = "unknown"
-			}
-			rows = append(rows, table.Row{name, svc, ct.Status, ct.State, health})
-		}
-		m.table.SetRows(rows)
-		return
-	}
-	q := strings.ToLower(m.filterQuery)
-	filtered := []docker.Container{}
-	rows := []table.Row{}
-	for _, ct := range m.containers {
-		name := ct.Names[0]
-		if len(name) > 0 && name[0] == '/' {
-			name = name[1:]
-		}
-		svc := ct.Labels["com.orvyn.service"]
-		if svc == "" {
-			svc = "-"
-		}
-		if strings.Contains(strings.ToLower(name), q) || strings.Contains(strings.ToLower(svc), q) {
-			filtered = append(filtered, ct)
-			health := "-"
-			if ct.State == "running" {
-				health = "unknown"
-			}
-			rows = append(rows, table.Row{name, svc, ct.Status, ct.State, health})
-		}
-	}
-	m.filtered = filtered
-	m.table.SetRows(rows)
-}
-
-func (m model) getList() []docker.Container {
-	if m.filterActive && m.filterQuery != "" {
-		if len(m.filtered) > 0 {
-			return m.filtered
-		}
-		return []docker.Container{}
-	}
-	return m.containers
-}
-
-func (m model) buildDetails() {
-	list := m.getList()
-	if len(list) == 0 {
-		list = m.containers
-	}
-	if len(list) == 0 {
-		m.details = []table.Row{}
-		m.dtable.SetRows(m.details)
-		return
-	}
-	idx := m.table.Cursor()
-	if idx < 0 || idx >= len(list) {
-		idx = 0
-	}
-	ct := list[idx]
-	name := ct.Names[0]
-	if len(name) > 0 && name[0] == '/' {
-		name = name[1:]
-	}
-	svc := ct.Labels["com.orvyn.service"]
-	if svc == "" {
-		svc = "-"
-	}
-	comp := ct.Labels["com.docker.compose.project"]
-	if comp == "" {
-		comp = "-"
-	}
-	rows := []table.Row{
-		{"Name", name},
-		{"Service", svc},
-		{"Compose Project", comp},
-		{"ID", ct.ID},
-		{"Image", ct.Image},
-		{"State", ct.State},
-		{"Status", ct.Status},
-		{"Managed", ct.Labels["com.orvyn.managed"]},
-	}
-	m.details = rows
-	m.dtable.SetRows(rows)
 }
 
 func tickCmd() tea.Cmd {
@@ -278,51 +155,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 
-	if m.filtering {
-		switch msg := msg.(type) {
-		case tea.KeyMsg:
-			if msg.String() == "enter" {
-				m.filtering = false
-				m.filterInput.Blur()
-				m.filterActive = true
-				m.filterQuery = m.filterInput.Value()
-				m.applyFilter()
-				return m, nil
-			}
-			if msg.String() == "esc" {
-				m.filtering = false
-				m.filterInput.Blur()
-				m.filterInput.SetValue("")
-				m.filterActive = false
-				m.filterQuery = ""
-				m.applyFilter()
-				return m, nil
-			}
-		}
-		m.filterInput, cmd = m.filterInput.Update(msg)
-		cmds = append(cmds, cmd)
-		return m, tea.Batch(cmds...)
-	}
-
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
-		case "/":
-			if m.view == viewOverview {
-				m.filtering = true
-				m.filterInput.Focus()
-				return m, textinput.Blink
-			}
-		case "esc":
-			if m.view == viewOverview && m.filterActive {
-				m.filterActive = false
-				m.filterQuery = ""
-				m.filterInput.SetValue("")
-				m.applyFilter()
-				return m, nil
-			}
 		case "r":
 			if m.view == viewOverview {
 				cmds = append(cmds, refreshCmd())
@@ -340,22 +177,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.view = viewMetrics
 				cmds = append(cmds, metricsCmd())
 			} else if m.view == viewMetrics {
-				m.view = viewDetails
-			} else if m.view == viewDetails {
 				m.view = viewOverview
 			} else if m.view == viewHelp {
 				m.view = viewOverview
 			}
 			return m, tea.Batch(cmds...)
-		case "d":
-			if m.view == viewOverview {
-				m.view = viewDetails
-				m.buildDetails()
-				return m, nil
-			} else if m.view == viewDetails {
-				m.view = viewOverview
-				return m, nil
-			}
 		case "?":
 			if m.view == viewHelp {
 				m.view = viewOverview
@@ -381,14 +207,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.table.SetWidth(msg.Width)
-		m.table.SetHeight(msg.Height - 12)
+		m.table.SetHeight(msg.Height - 10)
 		m.mtable.SetWidth(msg.Width)
 		m.mtable.SetHeight(msg.Height - 18)
-		m.dtable.SetWidth(msg.Width)
-		m.dtable.SetHeight(msg.Height - 12)
 		m.viewport.Width = msg.Width - 4
 		m.viewport.Height = msg.Height - 12
-		m.filterInput.Width = msg.Width - 20
 		m.ready = true
 		return m, nil
 	case tickMsg:
@@ -402,10 +225,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmds...)
 	case refreshMsg:
 		m.containers = []docker.Container(msg)
-		m.applyFilter()
-		if m.view == viewDetails {
-			m.buildDetails()
+		rows := []table.Row{}
+		for _, ct := range m.containers {
+			name := ct.ID
+			if len(ct.Names) > 0 {
+				name = ct.Names[0]
+				if len(name) > 0 && name[0] == '/' {
+					name = name[1:]
+				}
+			}
+			svc := ct.Labels["com.orvyn.service"]
+			if svc == "" {
+				svc = "-"
+			}
+			health := "-"
+			if ct.State == "running" {
+				health = "unknown"
+			}
+			rows = append(rows, table.Row{name, svc, ct.Status, ct.State, health})
 		}
+		m.table.SetRows(rows)
 		return m, nil
 	case logsMsg:
 		m.logs = []string(msg)
@@ -441,32 +280,24 @@ func (m model) View() string {
 		return fmt.Sprintf("Error: %v\n\nPress q to quit", m.err)
 	}
 
-	header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("51")).Render("ORVYN")
-	sub := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(" | k9s-style terminal dashboard")
+	header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("ORVYN")
+	sub := lipgloss.NewStyle().Faint(true).Render(" | k9s-style terminal dashboard")
 	title := header + sub
 
-	tabs := []string{"[1] Overview", "[2] Logs", "[3] Metrics", "[4] Details", "[?] Help"}
+	tabs := []string{"[o] Overview", "[l] Logs", "[m] Metrics", "[?] Help"}
 	var tabStrs []string
 	for i, t := range tabs {
-		if (i == 0 && m.view == viewOverview) || (i == 1 && m.view == viewLogs) || (i == 2 && m.view == viewMetrics) || (i == 3 && m.view == viewDetails) || (i == 4 && m.view == viewHelp) {
-			tabStrs = append(tabStrs, lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("51")).Background(lipgloss.Color("237")).Padding(0, 1).Render(t))
+		if (i == 0 && m.view == viewOverview) || (i == 1 && m.view == viewLogs) || (i == 2 && m.view == viewMetrics) || (i == 3 && m.view == viewHelp) {
+			tabStrs = append(tabStrs, lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render(t))
 		} else {
-			tabStrs = append(tabStrs, lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Background(lipgloss.Color("235")).Padding(0, 1).Render(t))
+			tabStrs = append(tabStrs, lipgloss.NewStyle().Faint(true).Render(t))
 		}
 	}
-	tabBar := lipgloss.JoinHorizontal(lipgloss.Top, tabStrs...)
+	tabBar := strings.Join(tabStrs, "  ")
 
 	if m.view == viewOverview {
-		help := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render("↑/↓ • /: filter • Esc: clear • d: details • l: logs • m: metrics • r: refresh • Tab: switch • ?: help • q: quit")
-		base := fmt.Sprintf("%s\n%s\n\n%s\n\n%s\n", title, tabBar, m.table.View(), help)
-		if m.filtering {
-			filterBar := lipgloss.NewStyle().Foreground(lipgloss.Color("51")).Render(m.filterInput.View())
-			base = fmt.Sprintf("%s\n%s\n", base, filterBar)
-		} else if m.filterActive && m.filterQuery != "" {
-			filterBar := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(fmt.Sprintf("Filter: %s (%d/%d)", m.filterQuery, len(m.filtered), len(m.containers)))
-			base = fmt.Sprintf("%s\n%s\n", base, filterBar)
-		}
-		return base
+		help := lipgloss.NewStyle().Faint(true).Render("↑/↓ navigate • l: logs • m: metrics • r: refresh • tab: switch (Overview → Logs → Metrics) • ?: help • q: quit")
+		return fmt.Sprintf("%s\n%s\n\n%s\n\n%s\n", title, tabBar, m.table.View(), help)
 	}
 
 	if m.view == viewLogs {
@@ -475,9 +306,12 @@ func (m model) View() string {
 			idx := m.table.Cursor()
 			if idx >= 0 && idx < len(m.containers) {
 				ct := m.containers[idx]
-				name := ct.Names[0]
-				if len(name) > 0 && name[0] == '/' {
-					name = name[1:]
+				name := ct.ID
+				if len(ct.Names) > 0 {
+					name = ct.Names[0]
+					if len(name) > 0 && name[0] == '/' {
+						name = name[1:]
+					}
 				}
 				svc = name
 			}
@@ -502,44 +336,17 @@ func (m model) View() string {
 		host += fmt.Sprintf("  RAM:   %.1fGB / %.1fGB (%.1f%%) used\n", float64(h.MemUsed)/1024/1024/1024, float64(h.MemTotal)/1024/1024/1024, memPct)
 		host += fmt.Sprintf("  DISK:  %.1fGB / %.1fGB (%.1f%%) used  (/)\n", float64(h.DiskUsed)/1024/1024/1024, float64(h.DiskTotal)/1024/1024/1024, diskPct)
 		ctitle := lipgloss.NewStyle().Bold(true).Render("\nCONTAINERS (managed)")
-		help := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render("r: refresh • o: overview • d: details • l: logs • /: filter • Tab: switch • q: quit")
+		help := lipgloss.NewStyle().Faint(true).Render("r: refresh • o: overview • l: logs • tab: switch • q: quit")
 		return fmt.Sprintf("%s\n%s\n\n%s\n%s\n\n%s\n\n%s\n", title, tabBar, host, ctitle, m.mtable.View(), help)
-	}
-
-	if m.view == viewDetails {
-		list := m.getList()
-		if len(list) == 0 {
-			list = m.containers
-		}
-		var svc string
-		if len(list) > 0 {
-			idx := m.table.Cursor()
-			if idx >= 0 && idx < len(list) {
-				ct := list[idx]
-				name := ct.Names[0]
-				if len(name) > 0 && name[0] == '/' {
-					name = name[1:]
-				}
-				svc = name
-			}
-		}
-		dtitle := lipgloss.NewStyle().Bold(true).Render(fmt.Sprintf("Details: %s", svc))
-		help := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render("r: refresh • o: overview • l: logs • Tab: switch • q: quit")
-		return fmt.Sprintf("%s\n%s\n\n%s\n\n%s\n\n%s\n", title, tabBar, dtitle, m.dtable.View(), help)
 	}
 
 	if m.view == viewHelp {
 		helpText := `KEYBINDS
 
   ↑/↓        Navigate
-  Tab        Cycle views (Overview → Logs → Metrics → Details → Help)
-  /          Filter containers by name/service (Overview)
-  Esc        Clear filter
-  d          View details for selected service
+  Tab        Cycle views (Overview → Logs → Metrics → Help)
   l          View logs for selected service
   m          View metrics (host + containers)
-  s          Start/Stop selected service (toggle)
-  Shift+R    Restart selected service
   r          Refresh
   ?          Toggle help
   o          Back to overview
@@ -550,7 +357,7 @@ INFO
   Orvyn Dashboard - Manage your isolated observability stack
   Only shows containers with com.orvyn.managed=true
   Metrics collected from /proc and Docker API`
-		help := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render("Press ? or Tab to return")
+		help := lipgloss.NewStyle().Faint(true).Render("Press ? or Tab to return")
 		return fmt.Sprintf("%s\n%s\n\n%s\n\n%s\n", title, tabBar, helpText, help)
 	}
 
