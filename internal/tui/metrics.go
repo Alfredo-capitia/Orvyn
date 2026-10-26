@@ -130,7 +130,7 @@ func getContainerMetrics(dc *docker.Client) []ContMetrics {
 		cpuPct := 0.0
 		cpuCount := uint64(len(stats.CPUStats.CPUUsage.PercpuUsage))
 		if stats.CPUStats.OnlineCPUs > 0 {
-			cpuCount = stats.CPUStats.OnlineCPUs
+			cpuCount = uint64(stats.CPUStats.OnlineCPUs)
 		}
 		if sysDelta > 0 && cpuDelta > 0 && cpuCount > 0 {
 			cpuPct = float64(cpuDelta) / float64(sysDelta) * float64(cpuCount) * 100.0
