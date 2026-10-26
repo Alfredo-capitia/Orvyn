@@ -295,23 +295,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmds...)
 	case refreshMsg:
 		m.containers = []docker.Container(msg)
-		rows := []table.Row{}
-		for _, ct := range m.containers {
-			name := ct.Names[0]
-			if len(name) > 0 && name[0] == '/' {
-				name = name[1:]
-			}
-			svc := ct.Labels["com.orvyn.service"]
-			if svc == "" {
-				svc = "-"
-			}
-			health := "-"
-			if ct.State == "running" {
-				health = "unknown"
-			}
-			rows = append(rows, table.Row{name, svc, ct.Status, ct.State, health})
-		}
-		m.table.SetRows(rows)
+		m.applyFilter()
 		return m, nil
 	case logsMsg:
 		m.logs = []string(msg)
