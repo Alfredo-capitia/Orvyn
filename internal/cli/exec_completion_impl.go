@@ -12,10 +12,11 @@ import (
 )
 
 var execCmd = &cobra.Command{
-	Use:   "exec <service> [command...]",
-	Short: "Execute a command in a managed container",
+	Use:                "exec <service> [command...]",
+	Short:              "Execute a command in a managed container",
+	DisableFlagParsing: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
+		if len(args) == 0 || args[0] == "-h" || args[0] == "--help" {
 			return cmd.Help()
 		}
 		target := args[0]
@@ -63,15 +64,14 @@ var execCmd = &cobra.Command{
 
 		fmt.Printf("[EXEC] %s\n", target)
 		dargs := []string{"exec"}
-		if isTerminal() && len(args) == 1 {
-			dargs = append(dargs, "-it")
-		} else if isTerminal() {
+		if isTerminal() {
 			dargs = append(dargs, "-it")
 		} else {
 			dargs = append(dargs, "-i")
 		}
 		dargs = append(dargs, id)
 		dargs = append(dargs, cmdArgs...)
+
 		dexec := exec.CommandContext(context.Background(), "docker", dargs...)
 		dexec.Stdin = os.Stdin
 		dexec.Stdout = os.Stdout
