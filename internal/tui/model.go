@@ -225,6 +225,32 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 
+	if m.filtering {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			if msg.String() == "enter" {
+				m.filtering = false
+				m.filterInput.Blur()
+				m.filterActive = true
+				m.filterQuery = m.filterInput.Value()
+				m.applyFilter()
+				return m, nil
+			}
+			if msg.String() == "esc" {
+				m.filtering = false
+				m.filterInput.Blur()
+				m.filterInput.SetValue("")
+				m.filterActive = false
+				m.filterQuery = ""
+				m.applyFilter()
+				return m, nil
+			}
+		}
+		m.filterInput, cmd = m.filterInput.Update(msg)
+		cmds = append(cmds, cmd)
+		return m, tea.Batch(cmds...)
+	}
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
