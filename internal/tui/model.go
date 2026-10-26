@@ -402,6 +402,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case refreshMsg:
 		m.containers = []docker.Container(msg)
 		m.applyFilter()
+		if m.view == viewDetails {
+			m.buildDetails()
+		}
 		return m, nil
 	case logsMsg:
 		m.logs = []string(msg)
