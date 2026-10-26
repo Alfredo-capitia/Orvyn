@@ -20,7 +20,7 @@ func init() {
 	rootCmd.AddCommand(discoverCmd)
 	rootCmd.AddCommand(planCmd)
 	rootCmd.AddCommand(applyCmd)
-	rootCmd.AddCommand(logsCmd)
+	// logsCmd registers itself in logs_impl.go together with its flags.
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(validateCmd)
 }

@@ -13,6 +13,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var statusCmd = &cobra.Command{
+	Use:   "status",
+	Short: "Show status of managed components",
+}
+
 func statusCmdRun(cmd *cobra.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
