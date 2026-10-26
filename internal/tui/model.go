@@ -21,6 +21,7 @@ const (
 	viewOverview viewState = iota
 	viewLogs
 	viewMetrics
+	viewDetails
 	viewHelp
 )
 
@@ -43,6 +44,7 @@ type model struct {
 	filtering    bool
 	filterActive bool
 	filterQuery  string
+	details      []table.Row
 }
 
 type tickMsg time.Time
@@ -79,6 +81,13 @@ func initialModel() model {
 	mt := table.New(table.WithColumns(mcols), table.WithFocused(false), table.WithHeight(10))
 	mt.SetStyles(s)
 
+	dcols := []table.Column{
+		{Title: "PROPERTY", Width: 20},
+		{Title: "VALUE", Width: 60},
+	}
+	dt := table.New(table.WithColumns(dcols), table.WithFocused(false), table.WithHeight(16))
+	dt.SetStyles(s)
+
 	ti := textinput.New()
 	ti.Prompt = "/ "
 	ti.Placeholder = "filter by name or service..."
@@ -89,6 +98,7 @@ func initialModel() model {
 		table:       t,
 		viewport:    vp,
 		mtable:      mt,
+		dtable:      dt,
 		view:        viewOverview,
 		filterInput: ti,
 	}
