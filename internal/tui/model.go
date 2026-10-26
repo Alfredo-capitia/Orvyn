@@ -501,8 +501,30 @@ func (m model) View() string {
 		host += fmt.Sprintf("  RAM:   %.1fGB / %.1fGB (%.1f%%) used\n", float64(h.MemUsed)/1024/1024/1024, float64(h.MemTotal)/1024/1024/1024, memPct)
 		host += fmt.Sprintf("  DISK:  %.1fGB / %.1fGB (%.1f%%) used  (/)\n", float64(h.DiskUsed)/1024/1024/1024, float64(h.DiskTotal)/1024/1024/1024, diskPct)
 		ctitle := lipgloss.NewStyle().Bold(true).Render("\nCONTAINERS (managed)")
-		help := lipgloss.NewStyle().Faint(true).Render("r: refresh • o: overview • l: logs • tab: switch • q: quit")
+		help := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render("r: refresh • o: overview • d: details • l: logs • /: filter • Tab: switch • q: quit")
 		return fmt.Sprintf("%s\n%s\n\n%s\n%s\n\n%s\n\n%s\n", title, tabBar, host, ctitle, m.mtable.View(), help)
+	}
+
+	if m.view == viewDetails {
+		list := m.getList()
+		if len(list) == 0 {
+			list = m.containers
+		}
+		var svc string
+		if len(list) > 0 {
+			idx := m.table.Cursor()
+			if idx >= 0 && idx < len(list) {
+				ct := list[idx]
+				name := ct.Names[0]
+				if len(name) > 0 && name[0] == '/' {
+					name = name[1:]
+				}
+				svc = name
+			}
+		}
+		dtitle := lipgloss.NewStyle().Bold(true).Render(fmt.Sprintf("Details: %s", svc))
+		help := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render("r: refresh • o: overview • l: logs • Tab: switch • q: quit")
+		return fmt.Sprintf("%s\n%s\n\n%s\n\n%s\n\n%s\n", title, tabBar, dtitle, m.dtable.View(), help)
 	}
 
 	if m.view == viewHelp {
