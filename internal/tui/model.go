@@ -388,8 +388,16 @@ func (m model) View() string {
 	tabBar := strings.Join(tabStrs, "  ")
 
 	if m.view == viewOverview {
-		help := lipgloss.NewStyle().Faint(true).Render("↑/↓ navigate • l: logs • m: metrics • r: refresh • tab: switch • ?: help • q: quit")
-		return fmt.Sprintf("%s\n%s\n\n%s\n\n%s\n", title, tabBar, m.table.View(), help)
+		help := lipgloss.NewStyle().Faint(true).Render("↑/↓ • /: filter • esc: clear • l: logs • m: metrics • r: refresh • tab: switch • ?: help • q: quit")
+		base := fmt.Sprintf("%s\n%s\n\n%s\n\n%s\n", title, tabBar, m.table.View(), help)
+		if m.filtering {
+			filterBar := lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Render(m.filterInput.View())
+			base = fmt.Sprintf("%s\n%s\n", base, filterBar)
+		} else if m.filterActive && m.filterQuery != "" {
+			filterBar := lipgloss.NewStyle().Faint(true).Render(fmt.Sprintf("Filter: %s (%d/%d)", m.filterQuery, len(m.filtered), len(m.containers)))
+			base = fmt.Sprintf("%s\n%s\n", base, filterBar)
+		}
+		return base
 	}
 
 	if m.view == viewLogs {
