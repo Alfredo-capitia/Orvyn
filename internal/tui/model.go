@@ -97,6 +97,63 @@ func (m model) Init() tea.Cmd {
 	return tea.Batch(tickCmd(), refreshCmd(), metricsCmd())
 }
 
+func (m model) applyFilter() {
+	if !m.filterActive || m.filterQuery == "" {
+		m.filtered = nil
+		rows := []table.Row{}
+		for _, ct := range m.containers {
+			name := ct.Names[0]
+			if len(name) > 0 && name[0] == '/' {
+				name = name[1:]
+			}
+			svc := ct.Labels["com.orvyn.service"]
+			if svc == "" {
+				svc = "-"
+			}
+			health := "-"
+			if ct.State == "running" {
+				health = "unknown"
+			}
+			rows = append(rows, table.Row{name, svc, ct.Status, ct.State, health})
+		}
+		m.table.SetRows(rows)
+		return
+	}
+	q := strings.ToLower(m.filterQuery)
+	filtered := []docker.Container{}
+	rows := []table.Row{}
+	for _, ct := range m.containers {
+		name := ct.Names[0]
+		if len(name) > 0 && name[0] == '/' {
+			name = name[1:]
+		}
+		svc := ct.Labels["com.orvyn.service"]
+		if svc == "" {
+			svc = "-"
+		}
+		if strings.Contains(strings.ToLower(name), q) || strings.Contains(strings.ToLower(svc), q) {
+			filtered = append(filtered, ct)
+			health := "-"
+			if ct.State == "running" {
+				health = "unknown"
+			}
+			rows = append(rows, table.Row{name, svc, ct.Status, ct.State, health})
+		}
+	}
+	m.filtered = filtered
+	m.table.SetRows(rows)
+}
+
+func (m model) getList() []docker.Container {
+	if m.filterActive && m.filterQuery != "" {
+		if len(m.filtered) > 0 {
+			return m.filtered
+		}
+		return []docker.Container{}
+	}
+	return m.containers
+}
+
 func tickCmd() tea.Cmd {
 	return tea.Tick(3*time.Second, func(t time.Time) tea.Msg { return tickMsg(t) })
 }
