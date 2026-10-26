@@ -46,6 +46,7 @@ type model struct {
 	filterActive bool
 	filterQuery  string
 	details      []table.Row
+	healthCache  map[string]string
 }
 
 type tickMsg time.Time
@@ -102,6 +103,7 @@ func initialModel() model {
 		dtable:      dt,
 		view:        viewOverview,
 		filterInput: ti,
+		healthCache: make(map[string]string),
 	}
 }
 
