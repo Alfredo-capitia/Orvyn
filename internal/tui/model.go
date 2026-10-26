@@ -29,6 +29,7 @@ type model struct {
 	table        table.Model
 	viewport     viewport.Model
 	mtable       table.Model
+	dtable       table.Model
 	containers   []docker.Container
 	filtered     []docker.Container
 	logs         []string
