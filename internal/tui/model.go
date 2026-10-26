@@ -25,8 +25,8 @@ const (
 )
 
 type model struct {
-	table      table.Model
-	viewport   viewport.Model
+	table        table.Model
+	viewport     viewport.Model
 	mtable       table.Model
 	containers   []docker.Container
 	filtered     []docker.Container
