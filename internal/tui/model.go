@@ -416,6 +416,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmds...)
 	case refreshMsg:
 		m.containers = []docker.Container(msg)
+		go func() {
+			dc, err := docker.New()
+			if err != nil {
+				return
+			}
+			defer dc.Close()
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			for _, ct := range m.containers {
+				ins, err := dc.InspectContainer(ctx, ct.ID)
+				if err != nil {
+					continue
+				}
+				if ins.State.Health != nil && ins.State.Health.Status != "" {
+					m.healthCache[ct.ID] = ins.State.Health.Status
+				}
+			}
+		}()
 		m.applyFilter()
 		if m.view == viewDetails {
 			m.buildDetails()
