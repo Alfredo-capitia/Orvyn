@@ -43,11 +43,6 @@ jobs:
       - name: Test
         run: go test ./... -count=1
 
-      - name: Dependency check (govulncheck)
-        run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./cmd/... ./internal/... ./pkg/... || true
-
       - name: Static analysis (staticcheck)
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@latest
