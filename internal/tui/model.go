@@ -444,10 +444,10 @@ func (m model) View() string {
 	sub := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(" | k9s-style terminal dashboard")
 	title := header + sub
 
-	tabs := []string{"[1] Overview", "[2] Logs", "[3] Metrics", "[?] Help"}
+	tabs := []string{"[1] Overview", "[2] Logs", "[3] Metrics", "[4] Details", "[?] Help"}
 	var tabStrs []string
 	for i, t := range tabs {
-		if (i == 0 && m.view == viewOverview) || (i == 1 && m.view == viewLogs) || (i == 2 && m.view == viewMetrics) || (i == 3 && m.view == viewHelp) {
+		if (i == 0 && m.view == viewOverview) || (i == 1 && m.view == viewLogs) || (i == 2 && m.view == viewMetrics) || (i == 3 && m.view == viewDetails) || (i == 4 && m.view == viewHelp) {
 			tabStrs = append(tabStrs, lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("51")).Background(lipgloss.Color("237")).Padding(0, 1).Render(t))
 		} else {
 			tabStrs = append(tabStrs, lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Background(lipgloss.Color("235")).Padding(0, 1).Render(t))
