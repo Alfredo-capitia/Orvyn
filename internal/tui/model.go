@@ -64,8 +64,9 @@ func initialModel() model {
 	}
 	t := table.New(table.WithColumns(columns), table.WithFocused(true), table.WithHeight(10))
 	s := table.DefaultStyles()
-	s.Header = s.Header.BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("39")).BorderBottom(true).Bold(true)
-	s.Selected = s.Selected.Foreground(lipgloss.Color("229")).Background(lipgloss.Color("39")).Bold(false)
+	s.Header = s.Header.BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("39")).BorderBottom(true).Bold(true).Foreground(lipgloss.Color("39"))
+	s.Selected = s.Selected.Foreground(lipgloss.Color("255")).Background(lipgloss.Color("39")).Bold(true)
+	s.Cell = s.Cell.Foreground(lipgloss.Color("252"))
 	t.SetStyles(s)
 
 	vp := viewport.New(80, 16)
