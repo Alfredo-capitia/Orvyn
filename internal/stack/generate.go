@@ -35,7 +35,7 @@ volumes:
 
 services:
   node-exporter:
-    image: prom/node-exporter:latest
+    image: prom/node-exporter:v1.8.2
     container_name: orvyn-node-exporter
     restart: unless-stopped
     networks:
@@ -58,7 +58,7 @@ services:
       com.orvyn.service: "node-exporter"
 
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
+    image: gcr.io/cadvisor/cadvisor:v0.50.0
     container_name: orvyn-cadvisor
     restart: unless-stopped
     networks:
@@ -78,7 +78,7 @@ services:
       com.orvyn.service: "cadvisor"
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.55.1
     container_name: orvyn-prometheus
     restart: unless-stopped
     networks:
@@ -100,7 +100,7 @@ services:
       com.orvyn.service: "prometheus"
 
   loki:
-    image: grafana/loki:3.0.0
+    image: grafana/loki:3.3.2
     container_name: orvyn-loki
     restart: unless-stopped
     networks:
@@ -120,7 +120,7 @@ services:
       com.orvyn.service: "loki"
 
   alloy:
-    image: grafana/alloy:latest
+    image: grafana/alloy:v1.5.1
     container_name: orvyn-alloy
     restart: unless-stopped
     networks:
@@ -254,16 +254,16 @@ func GenerateAll() error {
 		}
 	}
 
-	if err := fsutil.AtomicWrite(cfg.StackCompose(), []byte(ComposeContent()), 0640); err != nil {
+	if err := fsutil.AtomicWrite(cfg.StackCompose(), []byte(ComposeContent()), 0644); err != nil {
 		return err
 	}
-	if err := fsutil.AtomicWrite(filepath.Join(cfg.StackDir, "prometheus", "prometheus.yml"), []byte(PrometheusConfig()), 0640); err != nil {
+	if err := fsutil.AtomicWrite(filepath.Join(cfg.StackDir, "prometheus", "prometheus.yml"), []byte(PrometheusConfig()), 0644); err != nil {
 		return err
 	}
-	if err := fsutil.AtomicWrite(filepath.Join(cfg.StackDir, "loki", "loki-config.yml"), []byte(LokiConfig()), 0640); err != nil {
+	if err := fsutil.AtomicWrite(filepath.Join(cfg.StackDir, "loki", "loki-config.yml"), []byte(LokiConfig()), 0644); err != nil {
 		return err
 	}
-	if err := fsutil.AtomicWrite(filepath.Join(cfg.StackDir, "alloy", "config.alloy"), []byte(AlloyConfig()), 0640); err != nil {
+	if err := fsutil.AtomicWrite(filepath.Join(cfg.StackDir, "alloy", "config.alloy"), []byte(AlloyConfig()), 0644); err != nil {
 		return err
 	}
 
