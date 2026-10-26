@@ -531,9 +531,10 @@ func (m model) View() string {
 		helpText := `KEYBINDS
 
   ↑/↓        Navigate
-  Tab        Cycle views (Overview → Logs → Metrics → Help)
+  Tab        Cycle views (Overview → Logs → Metrics → Details → Help)
   /          Filter containers by name/service (Overview)
   Esc        Clear filter
+  d          View details for selected service
   l          View logs for selected service
   m          View metrics (host + containers)
   s          Start/Stop selected service (toggle)
@@ -548,7 +549,7 @@ INFO
   Orvyn Dashboard - Manage your isolated observability stack
   Only shows containers with com.orvyn.managed=true
   Metrics collected from /proc and Docker API`
-		help := lipgloss.NewStyle().Faint(true).Render("Press ? or Tab to return")
+		help := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render("Press ? or Tab to return")
 		return fmt.Sprintf("%s\n%s\n\n%s\n\n%s\n", title, tabBar, helpText, help)
 	}
 
