@@ -383,6 +383,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.table.SetHeight(msg.Height - 12)
 		m.mtable.SetWidth(msg.Width)
 		m.mtable.SetHeight(msg.Height - 18)
+		m.dtable.SetWidth(msg.Width)
+		m.dtable.SetHeight(msg.Height - 12)
 		m.viewport.Width = msg.Width - 4
 		m.viewport.Height = msg.Height - 12
 		m.filterInput.Width = msg.Width - 20
