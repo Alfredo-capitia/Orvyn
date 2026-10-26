@@ -88,3 +88,11 @@ func (c *Client) InspectContainer(ctx context.Context, id string) (container.Ins
 	defer cancel()
 	return c.cli.ContainerInspect(ctx, id)
 }
+
+func (c *Client) ContainerStats(ctx context.Context, id string, stream bool) (io.ReadCloser, error) {
+	resp, err := c.cli.ContainerStats(ctx, id, stream)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Body, nil
+}
