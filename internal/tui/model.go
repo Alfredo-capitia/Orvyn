@@ -450,11 +450,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.table.SetWidth(msg.Width)
-		m.table.SetHeight(msg.Height - 12)
+		m.table.SetHeight(msg.Height - 14)
 		m.mtable.SetWidth(msg.Width)
-		m.mtable.SetHeight(msg.Height - 18)
+		m.mtable.SetHeight(msg.Height - 20)
 		m.viewport.Width = msg.Width - 4
-		m.viewport.Height = msg.Height - 14
+		m.viewport.Height = msg.Height - 16
 		m.filterInput.Width = msg.Width - 20
 		m.ready = true
 		return m, nil
@@ -509,6 +509,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	} else if m.view == viewLogs {
 		m.viewport, cmd = m.viewport.Update(msg)
+		cmds = append(cmds, cmd)
+	} else if m.view == viewMetrics {
+		m.mtable, cmd = m.mtable.Update(msg)
 		cmds = append(cmds, cmd)
 	}
 
