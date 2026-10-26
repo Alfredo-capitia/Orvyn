@@ -456,7 +456,7 @@ func (m model) View() string {
 	tabBar := lipgloss.JoinHorizontal(lipgloss.Top, tabStrs...)
 
 	if m.view == viewOverview {
-		help := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render("↑/↓ • /: filter • Esc: clear • l: logs • m: metrics • r: refresh • Tab: switch • ?: help • q: quit")
+		help := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render("↑/↓ • /: filter • Esc: clear • d: details • l: logs • m: metrics • r: refresh • Tab: switch • ?: help • q: quit")
 		base := fmt.Sprintf("%s\n%s\n\n%s\n\n%s\n", title, tabBar, m.table.View(), help)
 		if m.filtering {
 			filterBar := lipgloss.NewStyle().Foreground(lipgloss.Color("51")).Render(m.filterInput.View())
