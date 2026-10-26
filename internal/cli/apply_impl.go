@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/fredy-arias/orvyn/internal/executil"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -130,8 +130,7 @@ var applyCmd = &cobra.Command{
 		fmt.Println("\n[IMAGES/SERVICES]")
 		sess.AddStep("docker_compose_up", "in_progress", cfg.StackCompose())
 		sess.Save()
-		c := exec.CommandContext(ctx, "docker", "compose", "-f", cfg.StackCompose(), "up", "-d")
-		out, err := c.CombinedOutput()
+		out, err := executil.RunWithTimeout(ctx, 300*time.Second, "docker", "compose", "-f", cfg.StackCompose(), "up", "-d")
 		if err != nil {
 			sess.Steps[len(sess.Steps)-1].Err = string(out)
 			sess.AddStep("docker_compose_up", "failed", cfg.StackCompose())
