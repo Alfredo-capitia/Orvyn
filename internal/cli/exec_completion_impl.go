@@ -12,10 +12,11 @@ import (
 )
 
 var execCmd = &cobra.Command{
-	Use:   "exec <service> [command...]",
-	Short: "Execute a command in a managed container",
+	Use:                "exec <service> [command...]",
+	Short:              "Execute a command in a managed container",
+	DisableFlagParsing: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
+		if len(args) == 0 || args[0] == "-h" || args[0] == "--help" {
 			return cmd.Help()
 		}
 		target := args[0]
