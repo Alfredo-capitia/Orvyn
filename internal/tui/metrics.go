@@ -110,26 +110,39 @@ func getContainerMetrics(dc *docker.Client) []ContMetrics {
 		}
 		res = append(res, ContMetrics{ID: c.ID, Name: name, CPU: "-", Mem: "-"})
 	}
-	statsCtx, scancel := context.WithTimeout(context.Background(), 6*time.Second)
-	defer scancel()
 	for i := range res {
+		statsCtx, scancel := context.WithTimeout(context.Background(), 6*time.Second)
 		rc, err := dc.ContainerStats(statsCtx, res[i].ID, false)
 		if err != nil {
+			scancel()
 			continue
 		}
 		var stats container.StatsResponse
 		if err := json.NewDecoder(rc).Decode(&stats); err != nil {
 			rc.Close()
+			scancel()
 			continue
 		}
 		rc.Close()
+		scancel()
 		cpuDelta := stats.CPUStats.CPUUsage.TotalUsage - stats.PreCPUStats.CPUUsage.TotalUsage
 		sysDelta := stats.CPUStats.SystemUsage - stats.PreCPUStats.SystemUsage
 		cpuPct := 0.0
-		if sysDelta > 0 && cpuDelta > 0 && len(stats.CPUStats.CPUUsage.PercpuUsage) > 0 {
-			cpuPct = float64(cpuDelta) / float64(sysDelta) * float64(len(stats.CPUStats.CPUUsage.PercpuUsage)) * 100.0
+		cpuCount := uint64(len(stats.CPUStats.CPUUsage.PercpuUsage))
+		if stats.CPUStats.OnlineCPUs > 0 {
+			cpuCount = stats.CPUStats.OnlineCPUs
+		}
+		if sysDelta > 0 && cpuDelta > 0 && cpuCount > 0 {
+			cpuPct = float64(cpuDelta) / float64(sysDelta) * float64(cpuCount) * 100.0
 		}
 		memUsage := stats.MemoryStats.Usage
+		if stats.MemoryStats.Stats != nil {
+			if v, ok := stats.MemoryStats.Stats["total_inactive_file"]; ok && v > 0 && v < memUsage {
+				memUsage -= v
+			} else if v, ok := stats.MemoryStats.Stats["inactive_file"]; ok && v > 0 && v < memUsage {
+				memUsage -= v
+			}
+		}
 		memLimit := stats.MemoryStats.Limit
 		memStr := fmt.Sprintf("%.1fMB", float64(memUsage)/1024/1024)
 		if memLimit > 0 {
