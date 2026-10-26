@@ -373,20 +373,20 @@ func (m model) View() string {
 		return fmt.Sprintf("Error: %v\n\nPress q to quit", m.err)
 	}
 
-	header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render("ORVYN")
-	sub := lipgloss.NewStyle().Faint(true).Render(" | k9s-style terminal dashboard")
+	header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("51")).Render("ORVYN")
+	sub := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(" | k9s-style terminal dashboard")
 	title := header + sub
 
-	tabs := []string{"[1/Tab] Overview", "[l] Logs", "[m/Tab] Metrics", "[?] Help"}
+	tabs := []string{"[1] Overview", "[2] Logs", "[3] Metrics", "[?] Help"}
 	var tabStrs []string
 	for i, t := range tabs {
 		if (i == 0 && m.view == viewOverview) || (i == 1 && m.view == viewLogs) || (i == 2 && m.view == viewMetrics) || (i == 3 && m.view == viewHelp) {
-			tabStrs = append(tabStrs, lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).Render(t))
+			tabStrs = append(tabStrs, lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("51")).Background(lipgloss.Color("237")).Padding(0, 1).Render(t))
 		} else {
-			tabStrs = append(tabStrs, lipgloss.NewStyle().Faint(true).Render(t))
+			tabStrs = append(tabStrs, lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Background(lipgloss.Color("235")).Padding(0, 1).Render(t))
 		}
 	}
-	tabBar := strings.Join(tabStrs, "  ")
+	tabBar := lipgloss.JoinHorizontal(lipgloss.Top, tabStrs...)
 
 	if m.view == viewOverview {
 		help := lipgloss.NewStyle().Faint(true).Render("↑/↓ • /: filter • esc: clear • l: logs • m: metrics • r: refresh • tab: switch • ?: help • q: quit")
