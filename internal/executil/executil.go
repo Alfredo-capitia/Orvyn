@@ -31,3 +31,13 @@ func RunWithTimeout(ctx context.Context, timeout time.Duration, name string, arg
 	out, err := cmd.CombinedOutput()
 	return out, err
 }
+
+// RunInteractive runs an allowed executable with stdin/stdout/stderr attached
+func RunInteractive(ctx context.Context, name string, args ...string) error {
+	if !isAllowed(name) {
+		return fmt.Errorf("%w: %s", ErrNotAllowed, name)
+	}
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Stdin = nil // caller should set
+	return cmd.Run()
+}

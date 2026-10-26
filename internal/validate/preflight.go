@@ -3,9 +3,9 @@ package validate
 import (
 	"context"
 	"fmt"
+	"github.com/fredy-arias/orvyn/internal/executil"
 	"net"
 	"os"
-	"os/exec"
 	"runtime"
 	"syscall"
 	"time"
@@ -46,7 +46,7 @@ func Preflight(ctx context.Context) *Report {
 
 	// Docker compose
 	cctx, ccancel := context.WithTimeout(ctx, 3*time.Second)
-	out, err := exec.CommandContext(cctx, "docker", "compose", "version").CombinedOutput()
+	out, err := executil.RunWithTimeout(cctx, 3*time.Second, "docker", "compose", "version")
 	ccancel()
 	if err != nil {
 		r.Checks = append(r.Checks, Check{Name: "docker_compose", Status: "FAIL", Msg: "docker compose not available"})
