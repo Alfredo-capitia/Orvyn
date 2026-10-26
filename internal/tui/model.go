@@ -416,7 +416,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmds...)
 	case refreshMsg:
 		m.containers = []docker.Container(msg)
-		go func() {
+		go func(conts []docker.Container, hc map[string]string) {
 			dc, err := docker.New()
 			if err != nil {
 				return
@@ -424,16 +424,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			defer dc.Close()
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			for _, ct := range m.containers {
+			for _, ct := range conts {
 				ins, err := dc.InspectContainer(ctx, ct.ID)
 				if err != nil {
 					continue
 				}
 				if ins.State.Health != nil && ins.State.Health.Status != "" {
-					m.healthCache[ct.ID] = ins.State.Health.Status
+					hc[ct.ID] = ins.State.Health.Status
 				}
 			}
-		}()
+		}(m.containers, m.healthCache)
 		m.applyFilter()
 		if m.view == viewDetails {
 			m.buildDetails()
