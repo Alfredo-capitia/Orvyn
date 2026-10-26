@@ -90,9 +90,10 @@ func initialModel() model {
 	mt.SetStyles(s)
 
 	ti := textinput.New()
+	ti.Prompt = "/ "
 	ti.Placeholder = "filter by name or service..."
 	ti.CharLimit = 64
-	ti.Width = 40
+	ti.Width = 50
 
 	return model{
 		table:       t,
@@ -538,7 +539,7 @@ func (m model) View() string {
 		help := lipgloss.NewStyle().Faint(true).Render("↑/↓ • /: filter • esc: clear • s: start/stop • R: restart • l: logs • r: refresh • tab: switch • ?: help • q: quit")
 		base := fmt.Sprintf("%s\n%s\n\n%s\n\n%s\n", title, tabBar, m.table.View(), help)
 		if m.filtering {
-			filterBar := lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Render("/ " + m.filterInput.View())
+			filterBar := lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Render(m.filterInput.View())
 			base = fmt.Sprintf("%s\n%s\n", base, filterBar)
 		} else if m.filterActive && m.filterQuery != "" {
 			filterBar := lipgloss.NewStyle().Faint(true).Render(fmt.Sprintf("Filter: %s (%d/%d)", m.filterQuery, len(m.filtered), len(m.containers)))
