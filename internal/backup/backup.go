@@ -29,6 +29,11 @@ const (
 	// total number of bytes a restore is allowed to write.
 	MaxArchiveBytes int64 = 256 << 20
 
+	// maxUncompressed bounds the decompressed stream. File payloads are already
+	// capped by MaxArchiveBytes; the slack covers tar headers, padding and the
+	// end-of-archive blocks so a legitimate archive at the limit still fits.
+	maxUncompressed = MaxArchiveBytes + 16<<20
+
 	maxEntries = 5000
 
 	archivePrefix = "backup-"
@@ -38,6 +43,7 @@ const (
 var (
 	ErrEmpty       = errors.New("nothing to back up")
 	ErrUnsafePath  = errors.New("archive contains an unsafe path")
+	ErrUnsafeDest  = errors.New("unsafe restore destination")
 	ErrUnsupported = errors.New("archive contains an unsupported entry")
 	ErrTooLarge    = errors.New("archive exceeds the size limit")
 )
@@ -150,7 +156,18 @@ func Create(dir string, roots ...Root) (string, error) {
 }
 
 func addRoot(tw *tar.Writer, root Root, written *int) error {
-	info, err := os.Lstat(root.Path)
+	// A root is often a symlink (StackDir may point at another mount). Resolve it
+	// first: walking the link itself would look like a non-directory and silently
+	// archive nothing.
+	resolved, err := filepath.EvalSymlinks(root.Path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	info, err := os.Stat(resolved)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -162,17 +179,17 @@ func addRoot(tw *tar.Writer, root Root, written *int) error {
 		if !info.Mode().IsRegular() {
 			return nil
 		}
-		return addFile(tw, root.Path, root.Name, written)
+		return addFile(tw, resolved, root.Name, written)
 	}
 
-	return filepath.WalkDir(root.Path, func(p string, d fs.DirEntry, err error) error {
+	return filepath.WalkDir(resolved, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if p == root.Path {
+		if p == resolved {
 			return nil
 		}
-		rel, err := filepath.Rel(root.Path, p)
+		rel, err := filepath.Rel(resolved, p)
 		if err != nil {
 			return err
 		}
@@ -296,12 +313,15 @@ func archiveSeq(p string) int {
 }
 
 // Restore extracts archivePath, mapping each top-level archive entry to the
-// destination given in dests. Unknown top-level entries, absolute paths,
-// traversal, symlinks and oversized files are rejected.
+// destination given in dests. For a directory root the destination is the
+// directory that will hold its contents; for a file root it is the destination
+// file path. Unknown top-level entries, absolute paths, traversal, symlinks and
+// oversized files are rejected.
 //
 // Files are unpacked into a temporary directory first and only moved into place
 // once the whole archive has been validated, so a bad archive cannot leave a
-// half-restored tree behind.
+// half-restored tree behind. A destination root may itself be a symlink, but no
+// component below it may be, so a planted link cannot redirect the restore.
 func Restore(archivePath string, dests map[string]string) ([]string, error) {
 	if len(dests) == 0 {
 		return nil, fmt.Errorf("%w: no destinations configured", ErrUnsafePath)
@@ -332,11 +352,14 @@ func Restore(archivePath string, dests map[string]string) ([]string, error) {
 		return nil, err
 	}
 	defer gz.Close()
-	tr := tar.NewReader(gz)
+	// Bound the decompressed stream too: the compressed size limit alone says
+	// nothing about how much a crafted archive can expand to.
+	tr := tar.NewReader(&boundedReader{r: gz, remain: maxUncompressed})
 
 	var (
 		files []string
 		dirs  []string
+		kinds = make(map[string]byte, len(dests))
 		total int64
 		count int
 	)
@@ -360,14 +383,32 @@ func Restore(archivePath string, dests map[string]string) ([]string, error) {
 			return nil, err
 		}
 		if rel == "" {
+			// The archive root itself. Only a directory entry is meaningful, and
+			// silently ignoring anything else would hide a malformed archive.
+			if hdr.Typeflag != tar.TypeDir {
+				return nil, fmt.Errorf("%w: root entry %q is not a directory", ErrUnsupported, hdr.Name)
+			}
 			continue
 		}
-		if _, ok := dests[topLevel(rel)]; !ok {
+		if hdr.Typeflag != tar.TypeDir && hdr.Typeflag != tar.TypeReg {
+			return nil, fmt.Errorf("%w: %q (type %q)", ErrUnsupported, hdr.Name, hdr.Typeflag)
+		}
+
+		name := topLevel(rel)
+		if _, ok := dests[name]; !ok {
 			return nil, fmt.Errorf("%w: unexpected top-level entry %q", ErrUnsafePath, hdr.Name)
 		}
+
+		kind := byte('d')
 		if hdr.Typeflag == tar.TypeReg && rest(rel) == "" {
-			return nil, fmt.Errorf("%w: file entry %q has no parent directory", ErrUnsupported, hdr.Name)
+			// Create archives a file-valued Root as a single entry named after the
+			// root, so it has no parent directory inside the archive.
+			kind = 'f'
 		}
+		if prev, ok := kinds[name]; ok && prev != kind {
+			return nil, fmt.Errorf("%w: %q mixes file and directory entries", ErrUnsupported, name)
+		}
+		kinds[name] = kind
 
 		target, err := withinRoot(tmpDir, rel)
 		if err != nil {
@@ -400,8 +441,6 @@ func Restore(archivePath string, dests map[string]string) ([]string, error) {
 				return nil, err
 			}
 			files = append(files, rel)
-		default:
-			return nil, fmt.Errorf("%w: %q (type %q)", ErrUnsupported, hdr.Name, hdr.Typeflag)
 		}
 	}
 
@@ -409,8 +448,42 @@ func Restore(archivePath string, dests map[string]string) ([]string, error) {
 		return nil, ErrEmpty
 	}
 
+	// Everything above was validated and unpacked into tmpDir, so the destination
+	// is only touched from here on. Resolve each destination root once: the root
+	// itself may legitimately be a symlink, but components below it may not.
+	resolved := make(map[string]string, len(dests))
+	destFor := func(name string) (string, error) {
+		if p, ok := resolved[name]; ok {
+			return p, nil
+		}
+		dir := dests[name]
+		if kinds[name] == 'f' {
+			dir = filepath.Dir(dir)
+		}
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			return "", err
+		}
+		p, err := filepath.EvalSymlinks(dir)
+		if err != nil {
+			return "", err
+		}
+		if kinds[name] == 'f' {
+			p = filepath.Join(p, filepath.Base(dests[name]))
+		}
+		resolved[name] = p
+		return p, nil
+	}
+
 	for _, rel := range dirs {
-		dst, err := withinRoot(dests[topLevel(rel)], rest(rel))
+		root, err := destFor(topLevel(rel))
+		if err != nil {
+			return nil, err
+		}
+		sub := rest(rel)
+		if err := ensureNoSymlinks(root, sub); err != nil {
+			return nil, err
+		}
+		dst, err := withinRoot(root, sub)
 		if err != nil {
 			return nil, err
 		}
@@ -424,10 +497,25 @@ func Restore(archivePath string, dests map[string]string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		dst, err := withinRoot(dests[topLevel(rel)], rest(rel))
+		root, err := destFor(topLevel(rel))
 		if err != nil {
 			return nil, err
 		}
+
+		sub := rest(rel)
+		dst := root
+		if sub != "" {
+			if err := ensureNoSymlinks(root, filepath.Dir(sub)); err != nil {
+				return nil, err
+			}
+			dst, err = withinRoot(root, sub)
+			if err != nil {
+				return nil, err
+			}
+		} else if info, err := os.Lstat(dst); err == nil && info.IsDir() {
+			return nil, fmt.Errorf("%w: cannot restore file root %q over directory %s", ErrUnsupported, rel, dst)
+		}
+
 		if err := moveFile(src, dst); err != nil {
 			return nil, err
 		}
@@ -436,10 +524,71 @@ func Restore(archivePath string, dests map[string]string) ([]string, error) {
 	return files, nil
 }
 
+// boundedReader fails with ErrTooLarge once the byte budget is exhausted, and
+// keeps returning the underlying io.EOF when the stream really ended there.
+type boundedReader struct {
+	r      io.Reader
+	remain int64
+}
+
+func (b *boundedReader) Read(p []byte) (int, error) {
+	if b.remain <= 0 {
+		var probe [1]byte
+		n, err := b.r.Read(probe[:])
+		if n > 0 {
+			return 0, ErrTooLarge
+		}
+		if err == nil {
+			err = io.EOF
+		}
+		return 0, err
+	}
+	if int64(len(p)) > b.remain {
+		p = p[:b.remain]
+	}
+	n, err := b.r.Read(p)
+	b.remain -= int64(n)
+	return n, err
+}
+
+// ensureNoSymlinks rejects a destination path that would traverse a symlink
+// below root, so a link planted in the stack or config directory cannot
+// redirect a restore somewhere else.
+func ensureNoSymlinks(root, rel string) error {
+	if rel == "" || rel == "." {
+		return nil
+	}
+	cur := root
+	for _, part := range strings.Split(rel, string(os.PathSeparator)) {
+		if part == "" || part == "." {
+			continue
+		}
+		cur = filepath.Join(cur, part)
+		info, err := os.Lstat(cur)
+		if err != nil {
+			if os.IsNotExist(err) {
+				// The remainder is created as real directories below.
+				return nil
+			}
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("%w: %q is a symlink below the destination root", ErrUnsafeDest, cur)
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("%w: %q is not a directory", ErrUnsafeDest, cur)
+		}
+	}
+	return nil
+}
+
 // moveFile renames src to dst, falling back to a copy when the temporary
-// directory and the destination live on different filesystems.
+// directory and the destination live on different filesystems. The copy lands
+// in a sibling temporary file that is renamed into place, so it never writes
+// through a symlink at dst and never exposes a half-written file.
 func moveFile(src, dst string) error {
-	if err := os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
+	dir := filepath.Dir(dst)
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
 	err := os.Rename(src, dst)
@@ -460,17 +609,35 @@ func moveFile(src, dst string) error {
 	}
 	defer in.Close()
 
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, info.Mode().Perm())
+	tmp, err := os.CreateTemp(dir, ".orvyn-restore-*")
 	if err != nil {
 		return err
 	}
-	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
+	tmpName := tmp.Name()
+	cleanup := true
+	defer func() {
+		if cleanup {
+			tmp.Close()
+			os.Remove(tmpName)
+		}
+	}()
+
+	if _, err := io.Copy(tmp, in); err != nil {
 		return err
 	}
-	if err := out.Close(); err != nil {
+	if err := tmp.Chmod(info.Mode().Perm()); err != nil {
 		return err
 	}
+	if err := tmp.Sync(); err != nil {
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpName, dst); err != nil {
+		return err
+	}
+	cleanup = false
 	return os.Remove(src)
 }
 
@@ -492,6 +659,7 @@ func safeRel(name string) (string, error) {
 }
 
 func withinRoot(root, rel string) (string, error) {
+	root = filepath.Clean(root)
 	target := filepath.Join(root, rel)
 	if target == root {
 		return target, nil

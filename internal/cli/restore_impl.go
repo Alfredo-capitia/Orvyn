@@ -81,16 +81,20 @@ func runRestore(archive string, dests map[string]string, out io.Writer) ([]strin
 	return files, nil
 }
 
-// selectBackup resolves which archive to restore. Explicit paths are accepted
-// only when they stay inside the configured backup directory, so a typo cannot
-// pull an arbitrary file from disk.
+// selectBackup resolves which archive to restore. The chosen path is always
+// validated by validateArchive, including when it comes from --latest, so a
+// symlink inside the backup directory cannot point outside it.
 func selectBackup(cfg *config.Config, args []string, latest bool) (string, error) {
 	if len(args) > 0 && latest {
 		return "", errors.New("--latest cannot be combined with an explicit backup")
 	}
 
 	if len(args) == 1 {
-		return resolveBackupArg(cfg, args[0])
+		candidate := args[0]
+		if !filepath.IsAbs(candidate) {
+			candidate = filepath.Join(cfg.BackupDir, candidate)
+		}
+		return validateArchive(cfg, candidate, args[0])
 	}
 
 	infos, err := backup.List(cfg.BackupDir)
@@ -101,7 +105,7 @@ func selectBackup(cfg *config.Config, args []string, latest bool) (string, error
 		return "", fmt.Errorf("no backups found in %s", cfg.BackupDir)
 	}
 	if latest {
-		return infos[0].Path, nil
+		return validateArchive(cfg, infos[0].Path, filepath.Base(infos[0].Path))
 	}
 
 	names := make([]string, 0, len(infos))
@@ -112,31 +116,32 @@ func selectBackup(cfg *config.Config, args []string, latest bool) (string, error
 		strings.Join(names, "\n  "))
 }
 
-func resolveBackupArg(cfg *config.Config, arg string) (string, error) {
-	if arg == "" {
-		return "", errors.New("empty backup name")
+// validateArchive resolves both the archive and the backup directory through
+// symlinks before checking containment, and requires a regular file. Lexical
+// comparison alone would accept a link inside the backup directory that points
+// anywhere on disk.
+func validateArchive(cfg *config.Config, path, label string) (string, error) {
+	base, err := filepath.EvalSymlinks(cfg.BackupDir)
+	if err != nil {
+		return "", fmt.Errorf("backup directory %s is not accessible: %w", cfg.BackupDir, err)
 	}
-	// A bare name is looked up in the backup directory; anything with a path
-	// separator is treated as a path and must resolve inside it too.
-	candidate := arg
-	if !filepath.IsAbs(candidate) {
-		candidate = filepath.Join(cfg.BackupDir, candidate)
+
+	resolved, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return "", fmt.Errorf("backup not found: %s", label)
 	}
-	abs, err := filepath.Abs(candidate)
+	if resolved != base && !strings.HasPrefix(resolved, base+string(os.PathSeparator)) {
+		return "", fmt.Errorf("%q is outside the backup directory %s", label, base)
+	}
+
+	info, err := os.Stat(resolved)
 	if err != nil {
 		return "", err
 	}
-	base, err := filepath.Abs(cfg.BackupDir)
-	if err != nil {
-		return "", err
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("%q is not a regular file", label)
 	}
-	if abs != base && !strings.HasPrefix(abs, base+string(os.PathSeparator)) {
-		return "", fmt.Errorf("%q is outside the backup directory %s", arg, cfg.BackupDir)
-	}
-	if _, err := os.Stat(abs); err != nil {
-		return "", fmt.Errorf("backup not found: %w", err)
-	}
-	return abs, nil
+	return resolved, nil
 }
 
 func confirmRestore(in io.Reader, out io.Writer, archive string, dests map[string]string) (bool, error) {

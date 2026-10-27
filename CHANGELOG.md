@@ -30,7 +30,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Prometheus and Loki bound to `127.0.0.1` only
 - Redaction of secrets in logs and audit entries
 - Atomic writes and path-traversal protection via `fsutil`
-- Restore is fail-closed: the archive is validated and unpacked into a temporary directory before any file is moved into place; absolute paths, `..`, symlinks, unknown top-level roots and entries above the size limit are rejected
+- Restore is fail-closed: the archive is validated and unpacked into a temporary directory before any file is moved into place; absolute paths, `..`, symlink entries, unknown top-level roots and entries above the size limit are rejected, and the decompressed stream is bounded
+- Restore never follows a symlink below the destination root, and cross-filesystem copies land in a sibling temporary file that is renamed into place
 - Backups are written `0600` and restore never applies group/other-writable or setuid bits from an archive
 
 ### Changed

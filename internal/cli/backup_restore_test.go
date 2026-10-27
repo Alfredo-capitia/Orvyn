@@ -210,6 +210,29 @@ func TestSelectBackupNoBackups(t *testing.T) {
 	}
 }
 
+func TestSelectBackupRejectsSymlinkOutsideBackupDir(t *testing.T) {
+	cfg := testConfig(t)
+	writeTestFile(t, filepath.Join(cfg.StackDir, "docker-compose.yml"), "one")
+	if _, err := runBackup(cfg, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+
+	outside := filepath.Join(t.TempDir(), "outside.tar.gz")
+	writeTestFile(t, outside, "not an archive")
+	link := filepath.Join(cfg.BackupDir, "backup-20260101T000000Z.tar.gz")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("symlinks unsupported: %v", err)
+	}
+
+	if _, err := selectBackup(cfg, []string{filepath.Base(link)}, false); err == nil {
+		t.Error("selectBackup accepted a symlink pointing outside the backup directory")
+	}
+	// --latest must go through the same check, not return List's path as-is.
+	if _, err := selectBackup(cfg, nil, true); err == nil {
+		t.Error("selectBackup --latest accepted a symlink pointing outside the backup directory")
+	}
+}
+
 func TestConfirmRestore(t *testing.T) {
 	dests := map[string]string{"stack": "/tmp/stack", "config": "/tmp/config"}
 

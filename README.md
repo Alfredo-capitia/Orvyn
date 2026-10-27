@@ -85,8 +85,10 @@ orvyn doctor
 orvyn logs loki --tail 50
 orvyn logs alloy -f
 
-# Roll back the generated stack/config if a change goes wrong
+# Take a snapshot before a risky change
 orvyn backup
+
+# If a change goes wrong, roll back to the newest snapshot
 orvyn restore --latest
 ```
 

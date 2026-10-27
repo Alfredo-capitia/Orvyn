@@ -2,8 +2,10 @@ package backup
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -307,6 +309,159 @@ func TestCreateRestorePreservesOwnerOnlyPermissions(t *testing.T) {
 	}
 	if got := info.Mode().Perm(); got != 0o600 {
 		t.Errorf("restored mode = %o, want 0600 (must not widen owner-only files)", got)
+	}
+}
+
+func TestCreateFollowsSymlinkedRoot(t *testing.T) {
+	src := t.TempDir()
+	target := filepath.Join(src, "real-stack")
+	writeFile(t, filepath.Join(target, "docker-compose.yml"), "services: {}\n", 0o644)
+
+	link := filepath.Join(src, "stack")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlinks unsupported: %v", err)
+	}
+
+	// Before resolving the root this silently produced ErrEmpty, i.e. a backup
+	// that claimed success but contained nothing.
+	archive, err := Create(filepath.Join(src, "backups"), Root{Name: "stack", Path: link})
+	if err != nil {
+		t.Fatalf("Create with a symlinked root: %v", err)
+	}
+
+	dst := filepath.Join(src, "dst", "stack")
+	files, err := Restore(archive, map[string]string{"stack": dst})
+	if err != nil {
+		t.Fatalf("Restore: %v", err)
+	}
+	if len(files) != 1 {
+		t.Fatalf("restored %d files, want 1: %v", len(files), files)
+	}
+}
+
+func TestRestoreAcceptsFileRoot(t *testing.T) {
+	src := t.TempDir()
+	srcFile := filepath.Join(src, "standalone.yml")
+	writeFile(t, srcFile, "a: b\n", 0o600)
+
+	archive, err := Create(filepath.Join(src, "backups"), Root{Name: "single", Path: srcFile})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// For a file root, dests maps the root name to the destination file itself.
+	dst := filepath.Join(src, "out", "restored.yml")
+	if _, err := Restore(archive, map[string]string{"single": dst}); err != nil {
+		t.Fatalf("Restore: %v", err)
+	}
+
+	body, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != "a: b\n" {
+		t.Errorf("restored content = %q", body)
+	}
+	info, err := os.Stat(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Errorf("restored mode = %o, want 0600", got)
+	}
+}
+
+func TestRestoreRejectsMixedFileAndDirRoot(t *testing.T) {
+	src := t.TempDir()
+	archive := writeArchive(t, src, []tarEntry{
+		{name: "stack", typ: tar.TypeReg, body: "root file"},
+		{name: "stack/child.txt", typ: tar.TypeReg, body: "child"},
+	})
+
+	dst := filepath.Join(src, "dst", "stack")
+	if _, err := Restore(archive, map[string]string{"stack": dst}); !errors.Is(err, ErrUnsupported) {
+		t.Fatalf("Restore = %v, want ErrUnsupported", err)
+	}
+}
+
+func TestRestoreRejectsSymlinkedDestinationComponent(t *testing.T) {
+	src := t.TempDir()
+	archive := writeArchive(t, src, []tarEntry{
+		{name: "stack/prometheus/prometheus.yml", typ: tar.TypeReg, body: "x"},
+	})
+
+	dst := filepath.Join(src, "dst", "stack")
+	outside := filepath.Join(src, "outside")
+	if err := os.MkdirAll(filepath.Join(dst), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(outside, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(dst, "prometheus")); err != nil {
+		t.Skipf("symlinks unsupported: %v", err)
+	}
+
+	if _, err := Restore(archive, map[string]string{"stack": dst}); !errors.Is(err, ErrUnsafeDest) {
+		t.Fatalf("Restore = %v, want ErrUnsafeDest", err)
+	}
+	entries, err := os.ReadDir(outside)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("restore wrote %d entries through the symlink", len(entries))
+	}
+}
+
+func TestRestoreRejectsFileEntryForArchiveRoot(t *testing.T) {
+	src := t.TempDir()
+	archive := writeArchive(t, src, []tarEntry{
+		{name: ".", typ: tar.TypeReg, body: "x"},
+	})
+
+	if _, err := Restore(archive, map[string]string{"stack": filepath.Join(src, "dst")}); !errors.Is(err, ErrUnsupported) {
+		t.Fatalf("Restore = %v, want ErrUnsupported", err)
+	}
+}
+
+func TestWithinRootCleansRoot(t *testing.T) {
+	got, err := withinRoot("/tmp/a/../b", "c")
+	if err != nil {
+		t.Fatalf("withinRoot rejected an unclean but valid root: %v", err)
+	}
+	if want := filepath.Join("/tmp/b", "c"); got != want {
+		t.Errorf("withinRoot = %q, want %q", got, want)
+	}
+}
+
+func TestBoundedReader(t *testing.T) {
+	readAll := func(b *boundedReader) ([]byte, error) {
+		var got []byte
+		buf := make([]byte, 2)
+		for {
+			n, err := b.Read(buf)
+			got = append(got, buf[:n]...)
+			if err != nil {
+				return got, err
+			}
+		}
+	}
+
+	got, err := readAll(&boundedReader{r: bytes.NewReader([]byte("abcde")), remain: 5})
+	if !errors.Is(err, io.EOF) {
+		t.Fatalf("read at the exact budget = %v, want io.EOF", err)
+	}
+	if string(got) != "abcde" {
+		t.Errorf("read %q, want %q", got, "abcde")
+	}
+
+	got, err = readAll(&boundedReader{r: bytes.NewReader([]byte("abcdef")), remain: 5})
+	if !errors.Is(err, ErrTooLarge) {
+		t.Fatalf("read past the budget = %v, want ErrTooLarge", err)
+	}
+	if len(got) != 5 {
+		t.Errorf("read %d bytes, want 5", len(got))
 	}
 }
 
