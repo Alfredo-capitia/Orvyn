@@ -112,15 +112,21 @@ func (m model) Init() tea.Cmd {
 	return tea.Batch(tickCmd(), refreshCmd(), metricsCmd())
 }
 
+// containerName returns the display name for a container, falling back to the
+// short ID when Docker reports no name, and strips the leading slash.
+func containerName(ct docker.Container) string {
+	if len(ct.Names) == 0 {
+		return ct.ID
+	}
+	return strings.TrimPrefix(ct.Names[0], "/")
+}
+
 func (m model) applyFilter() {
 	if !m.filterActive || m.filterQuery == "" {
 		m.filtered = nil
 		rows := []table.Row{}
 		for _, ct := range m.containers {
-			name := ct.Names[0]
-			if len(name) > 0 && name[0] == '/' {
-				name = name[1:]
-			}
+			name := containerName(ct)
 			svc := ct.Labels["com.orvyn.service"]
 			if svc == "" {
 				svc = "-"
@@ -144,10 +150,7 @@ func (m model) applyFilter() {
 	filtered := []docker.Container{}
 	rows := []table.Row{}
 	for _, ct := range m.containers {
-		name := ct.Names[0]
-		if len(name) > 0 && name[0] == '/' {
-			name = name[1:]
-		}
+		name := containerName(ct)
 		svc := ct.Labels["com.orvyn.service"]
 		if svc == "" {
 			svc = "-"
@@ -196,10 +199,7 @@ func (m model) buildDetails() {
 		idx = 0
 	}
 	ct := list[idx]
-	name := ct.Names[0]
-	if len(name) > 0 && name[0] == '/' {
-		name = name[1:]
-	}
+	name := containerName(ct)
 	svc := ct.Labels["com.orvyn.service"]
 	if svc == "" {
 		svc = "-"
@@ -535,12 +535,7 @@ func (m model) View() string {
 		if len(m.containers) > 0 {
 			idx := m.table.Cursor()
 			if idx >= 0 && idx < len(m.containers) {
-				ct := m.containers[idx]
-				name := ct.Names[0]
-				if len(name) > 0 && name[0] == '/' {
-					name = name[1:]
-				}
-				svc = name
+				svc = containerName(m.containers[idx])
 			}
 		}
 		logTitle := lipgloss.NewStyle().Bold(true).Render(fmt.Sprintf("Logs: %s (tail)", svc))
@@ -576,12 +571,7 @@ func (m model) View() string {
 		if len(list) > 0 {
 			idx := m.table.Cursor()
 			if idx >= 0 && idx < len(list) {
-				ct := list[idx]
-				name := ct.Names[0]
-				if len(name) > 0 && name[0] == '/' {
-					name = name[1:]
-				}
-				svc = name
+				svc = containerName(list[idx])
 			}
 		}
 		dtitle := lipgloss.NewStyle().Bold(true).Render(fmt.Sprintf("Details: %s", svc))

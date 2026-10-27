@@ -106,13 +106,7 @@ func getContainerMetrics(dc *docker.Client) []ContMetrics {
 		if v, ok := c.Labels["com.orvyn.managed"]; !ok || v != "true" {
 			continue
 		}
-		name := c.ID
-		if len(c.Names) > 0 {
-			name = c.Names[0]
-			if len(name) > 0 && name[0] == '/' {
-				name = name[1:]
-			}
-		}
+		name := containerName(c)
 		// Stopped containers keep their row with placeholder metrics: Docker
 		// returns an empty stats record for them, which must not render as 0%.
 		res = append(res, ContMetrics{ID: c.ID, Name: name, CPU: "-", Mem: "-"})

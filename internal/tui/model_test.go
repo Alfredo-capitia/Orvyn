@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/fredy-arias/orvyn/internal/docker"
 )
 
 func newTestModel(t *testing.T) model {
@@ -80,6 +81,17 @@ func TestViewRendersEveryView(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("metrics view is missing %q", want)
 		}
+	}
+}
+
+// TestContainerNameFallsBackToID avoids an index panic when Docker reports no
+// name for a container.
+func TestContainerNameFallsBackToID(t *testing.T) {
+	if got := containerName(docker.Container{ID: "abc123"}); got != "abc123" {
+		t.Errorf("containerName without names = %q, want the ID", got)
+	}
+	if got := containerName(docker.Container{ID: "abc123", Names: []string{"/orvyn-loki"}}); got != "orvyn-loki" {
+		t.Errorf("containerName did not strip the leading slash: %q", got)
 	}
 }
 
