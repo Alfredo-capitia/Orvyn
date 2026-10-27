@@ -84,6 +84,10 @@ orvyn doctor
 # View logs
 orvyn logs loki --tail 50
 orvyn logs alloy -f
+
+# Roll back the generated stack/config if a change goes wrong
+orvyn backup
+orvyn restore --latest
 ```
 
 ## CLI Reference
@@ -128,6 +132,8 @@ orvyn logs alloy -f
 | `orvyn exec <service> [cmd...]` | Run a command in a managed container (defaults to `sh`) |
 | `orvyn upgrade` | `docker compose pull` + `docker compose up -d` to update images |
 | `orvyn prune` | Prune unused Docker images |
+| `orvyn backup` | Archive the stack and config into `backups/backup-<timestamp>.tar.gz`. `--list` shows existing backups |
+| `orvyn restore [backup]` | Restore from a backup after confirmation. Supports `--latest` and `--yes` |
 | `orvyn completion <bash\|zsh\|fish\|powershell>` | Generate shell autocompletion |
 | `orvyn version` | Print Orvyn version |
 

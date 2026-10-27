@@ -15,6 +15,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Operational commands: `status`, `validate`, `doctor`, `info`, `config`
 - Maintenance commands: `prune`, `upgrade`
 - `exec` into managed containers and `logs` with `--follow`, `--tail` and `--timestamps`
+- `orvyn backup` to archive the stack and configuration into timestamped `.tar.gz` files, and `orvyn restore` to roll back after a failed change (`--latest`, `--yes`)
+- `apply` now takes an automatic backup before it overwrites any stack or config file
 - Shell completion for bash, zsh, fish and powershell
 - Interactive TUI dashboard (`orvyn dashboard`) with Overview, Logs, Metrics, Details and Help views
 - Host metrics from `/proc` and per-container stats from the Docker API
@@ -28,6 +30,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Prometheus and Loki bound to `127.0.0.1` only
 - Redaction of secrets in logs and audit entries
 - Atomic writes and path-traversal protection via `fsutil`
+- Restore is fail-closed: the archive is validated and unpacked into a temporary directory before any file is moved into place; absolute paths, `..`, symlinks, unknown top-level roots and entries above the size limit are rejected
+- Backups are written `0600` and restore never applies group/other-writable or setuid bits from an archive
 
 ### Changed
 
@@ -45,4 +49,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Known limitations
 
 - `govulncheck` is disabled in CI: GO-2026-4887 and GO-2026-4883 in `docker/docker v28.5.2` have no upstream fix yet
-- Backup creation before modifications is not implemented yet, and there is no `restore` command
+- Backups are not encrypted at rest: archives are `0600` and rely on filesystem permissions
+- Restore overwrites files present in the archive; it does not delete files created after the backup
