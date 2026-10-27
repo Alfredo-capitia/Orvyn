@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/fredy-arias/orvyn/internal/cli"
+	"github.com/Alfredo-capitia/Orvyn/internal/cli"
 )
 
 func main() {

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/fredy-arias/orvyn/internal/config"
-	"github.com/fredy-arias/orvyn/internal/planner"
+	"github.com/Alfredo-capitia/Orvyn/internal/config"
+	"github.com/Alfredo-capitia/Orvyn/internal/planner"
 	"github.com/spf13/cobra"
 )
 

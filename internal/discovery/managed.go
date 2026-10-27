@@ -3,7 +3,7 @@ package discovery
 import (
 	"context"
 
-	"github.com/fredy-arias/orvyn/internal/docker"
+	"github.com/Alfredo-capitia/Orvyn/internal/docker"
 )
 
 func ManagedStack(ctx context.Context) ([]docker.Container, error) {

@@ -1,4 +1,4 @@
-module github.com/fredy-arias/orvyn
+module github.com/Alfredo-capitia/Orvyn
 
 go 1.27.2
 

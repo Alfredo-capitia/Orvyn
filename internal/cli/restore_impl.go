@@ -10,9 +10,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fredy-arias/orvyn/internal/audit"
-	"github.com/fredy-arias/orvyn/internal/backup"
-	"github.com/fredy-arias/orvyn/internal/config"
+	"github.com/Alfredo-capitia/Orvyn/internal/audit"
+	"github.com/Alfredo-capitia/Orvyn/internal/backup"
+	"github.com/Alfredo-capitia/Orvyn/internal/config"
 	"github.com/spf13/cobra"
 )
 

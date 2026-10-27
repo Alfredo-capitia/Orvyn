@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fredy-arias/orvyn/internal/backup"
-	"github.com/fredy-arias/orvyn/internal/config"
+	"github.com/Alfredo-capitia/Orvyn/internal/backup"
+	"github.com/Alfredo-capitia/Orvyn/internal/config"
 )
 
 func testConfig(t *testing.T) *config.Config {

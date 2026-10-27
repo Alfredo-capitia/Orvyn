@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 
-	"github.com/fredy-arias/orvyn/internal/config"
+	"github.com/Alfredo-capitia/Orvyn/internal/config"
 	"github.com/spf13/cobra"
 )
 

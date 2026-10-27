@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/fredy-arias/orvyn/internal/docker"
+	"github.com/Alfredo-capitia/Orvyn/internal/docker"
 )
 
 type Result struct {

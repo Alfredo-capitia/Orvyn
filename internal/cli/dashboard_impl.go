@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/fredy-arias/orvyn/internal/tui"
+	"github.com/Alfredo-capitia/Orvyn/internal/tui"
 	"github.com/spf13/cobra"
 )
 

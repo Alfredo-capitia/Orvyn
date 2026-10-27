@@ -6,9 +6,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/fredy-arias/orvyn/internal/config"
-	"github.com/fredy-arias/orvyn/internal/discovery"
-	"github.com/fredy-arias/orvyn/internal/executil"
+	"github.com/Alfredo-capitia/Orvyn/internal/config"
+	"github.com/Alfredo-capitia/Orvyn/internal/discovery"
+	"github.com/Alfredo-capitia/Orvyn/internal/executil"
 	"github.com/spf13/cobra"
 )
 

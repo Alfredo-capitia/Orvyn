@@ -6,8 +6,8 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/fredy-arias/orvyn/internal/discovery"
-	"github.com/fredy-arias/orvyn/internal/docker"
+	"github.com/Alfredo-capitia/Orvyn/internal/discovery"
+	"github.com/Alfredo-capitia/Orvyn/internal/docker"
 	"github.com/spf13/cobra"
 )
 
