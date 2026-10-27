@@ -224,6 +224,17 @@ func addFile(tw *tar.Writer, src, name string, written *int) error {
 	}
 	defer f.Close()
 
+	// Lstat above already skipped symlinks, but the path could be swapped for one
+	// between that call and Open. Only copy when the opened handle is the same
+	// regular file that was sized, so a race cannot pull in an outside file.
+	fi, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	if !fi.Mode().IsRegular() || !os.SameFile(info, fi) {
+		return fmt.Errorf("%w: %q changed while being archived", ErrUnsafePath, src)
+	}
+
 	if _, err := io.Copy(tw, f); err != nil {
 		return err
 	}
@@ -506,19 +517,22 @@ func rest(rel string) string {
 	return ""
 }
 
-// exportMode records only the bits restore knows how to apply.
+// exportMode records the permission bits for the archive header. Group/other
+// write and setuid/setgid are dropped at creation time so a tampered archive
+// has nothing to escalate to.
 func exportMode(m os.FileMode) os.FileMode {
-	if m&0o111 != 0 {
-		return 0o755
-	}
-	return 0o644
+	return m.Perm() &^ os.FileMode(0o022)
 }
 
-// importMode never applies group/other write or setuid/setgid bits from an
-// archive.
+// importMode derives the on-disk mode for a restored file. It never widens the
+// archived permissions and never grants group/other write, but it does keep the
+// owner able to read and write so a later apply can rewrite the file. Explicit
+// executable bits survive, since generated scripts rely on them.
 func importMode(mode int64) os.FileMode {
-	if mode&0o111 != 0 {
-		return 0o755
+	perm := os.FileMode(mode).Perm() &^ os.FileMode(0o022)
+	perm |= 0o600
+	if os.FileMode(mode).Perm()&0o111 != 0 {
+		perm |= 0o111
 	}
-	return 0o644
+	return perm
 }

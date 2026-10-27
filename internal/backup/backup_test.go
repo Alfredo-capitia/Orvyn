@@ -261,6 +261,8 @@ func TestRestoreAppliesSafePermissions(t *testing.T) {
 	archive := writeArchive(t, src, []tarEntry{
 		{name: "stack/world-writable.txt", typ: tar.TypeReg, mode: 0o666, body: "x"},
 		{name: "stack/script.sh", typ: tar.TypeReg, mode: 0o777, body: "#!/bin/sh\n"},
+		{name: "stack/private.txt", typ: tar.TypeReg, mode: 0o600, body: "secret-ish\n"},
+		{name: "stack/setuid", typ: tar.TypeReg, mode: 0o4755, body: "x"},
 	})
 
 	dst := filepath.Join(src, "dst", "stack")
@@ -271,6 +273,8 @@ func TestRestoreAppliesSafePermissions(t *testing.T) {
 	for name, want := range map[string]os.FileMode{
 		"world-writable.txt": 0o644,
 		"script.sh":          0o755,
+		"private.txt":        0o600,
+		"setuid":             0o755,
 	} {
 		info, err := os.Stat(filepath.Join(dst, name))
 		if err != nil {
@@ -279,6 +283,30 @@ func TestRestoreAppliesSafePermissions(t *testing.T) {
 		if got := info.Mode().Perm(); got != want {
 			t.Errorf("%s mode = %o, want %o", name, got, want)
 		}
+	}
+}
+
+func TestCreateRestorePreservesOwnerOnlyPermissions(t *testing.T) {
+	src := t.TempDir()
+	stackDir := filepath.Join(src, "stack")
+	writeFile(t, filepath.Join(stackDir, "private.env"), "TOKEN=placeholder\n", 0o600)
+
+	archive, err := Create(filepath.Join(src, "backups"), Root{Name: "stack", Path: stackDir})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	dst := filepath.Join(src, "dst", "stack")
+	if _, err := Restore(archive, map[string]string{"stack": dst}); err != nil {
+		t.Fatalf("Restore: %v", err)
+	}
+
+	info, err := os.Stat(filepath.Join(dst, "private.env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Errorf("restored mode = %o, want 0600 (must not widen owner-only files)", got)
 	}
 }
 
