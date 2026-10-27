@@ -5,6 +5,10 @@ on:
     branches: [ main, master ]
   push:
     branches: [ main, master ]
+  # Dependencies and pinned images keep accumulating advisories even when the
+  # code does not change, so scan on a schedule too.
+  schedule:
+    - cron: '0 6 * * 1'
 
 permissions:
   contents: read
@@ -47,3 +51,113 @@ jobs:
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@latest
           staticcheck ./...
+
+  govulncheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.3'
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+
+      - name: Scan for reachable vulnerabilities
+        run: |
+          set -euo pipefail
+
+          results="$RUNNER_TEMP/govulncheck.json"
+          # JSON mode exits 0 even when findings exist, so a non-zero exit here
+          # means the tool or the vulnerability database failed, not that a
+          # vulnerability was found.
+          govulncheck -format json ./... > "$results"
+
+          # Only findings with a function in the trace are reachable from Orvyn.
+          # Module-level findings in required-but-unused code are informational.
+          jq -r 'select(.finding != null and ([.finding.trace[] | select(.function != null)] | length > 0)) | .finding.osv' \
+            "$results" | sort -u > "$RUNNER_TEMP/reachable.txt"
+
+          if [ ! -s "$RUNNER_TEMP/reachable.txt" ]; then
+            echo "No reachable vulnerabilities found."
+            exit 0
+          fi
+
+          grep -v '^#' .github/govulncheck-exclude.txt | sed '/^$/d' | sort -u > "$RUNNER_TEMP/allowed.txt"
+          grep -vxF -f "$RUNNER_TEMP/allowed.txt" "$RUNNER_TEMP/reachable.txt" > "$RUNNER_TEMP/unexpected.txt" || true
+
+          if [ -s "$RUNNER_TEMP/unexpected.txt" ]; then
+            echo "::error::Reachable vulnerabilities missing from .github/govulncheck-exclude.txt:"
+            cat "$RUNNER_TEMP/unexpected.txt"
+            govulncheck ./... || true
+            exit 1
+          fi
+
+          echo "Only documented, unfixed advisories are reachable:"
+          cat "$RUNNER_TEMP/reachable.txt"
+
+  image-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v0.76.1
+          cache: true
+
+      - name: Scan the images the stack generates
+        run: |
+          set -euo pipefail
+
+          # Derive the list from the generator so a version bump cannot leave an
+          # image unscanned.
+          mapfile -t images < <(grep -oP 'image:\s*\K\S+' internal/stack/generate.go | sort -u)
+          if [ "${#images[@]}" -eq 0 ]; then
+            echo "::error::No images found in internal/stack/generate.go"
+            exit 1
+          fi
+
+          for image in "${images[@]}"; do
+            echo "::group::Scanning $image"
+            trivy image \
+              --scanners vuln \
+              --severity HIGH,CRITICAL \
+              --ignorefile .trivyignore.yaml \
+              --timeout 20m \
+              --exit-code 1 \
+              --no-progress \
+              "$image"
+            echo "::endgroup::"
+          done
+
+  codeql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          languages: go
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          category: /language:go
