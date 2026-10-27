@@ -54,9 +54,9 @@ Covered by shape:
 |---|---|---|
 | AWS access key ID | `AKIA` followed by 16 uppercase alphanumerics | the secret access key is not recognised |
 | JWT | three base64url segments whose first two start with `eyJ` | other token formats are not recognised |
-| PEM private key | `BEGIN [RSA ]PRIVATE KEY` through the matching `END` block | EC, DSA and OpenSSH private keys are not matched |
+| PEM private key | `BEGIN [RSA ]PRIVATE KEY` through the matching `END` block, both in the same redacted input | the log stream redacts one line at a time, so a multi-line key is not masked; EC, DSA and OpenSSH private keys are not matched |
 | Key/value assignments | values after `password`, `passwd`, `pwd`, `secret`, `token`, `api_key`/`apikey`, `auth` or `bearer`, separated by `:` or `=` | values containing spaces are only masked up to the first space |
-| Connection strings | `user:password@host` credentials | only the userinfo form is matched |
+| Connection strings | `user:password@host` userinfo when the hostname is dotted and ends in a TLD of at least two letters | `localhost`, IP addresses and single-label service names are not matched |
 
 Not covered:
 
