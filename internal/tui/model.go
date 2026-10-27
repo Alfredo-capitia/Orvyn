@@ -299,9 +299,28 @@ func (m model) fetchLogs() tea.Cmd {
 	}
 }
 
+func (m model) applyMetrics(msg metricsMsg) model {
+	m.metricsBusy = false
+	m.hostm = msg.host
+	m.contm = msg.cont
+	rows := []table.Row{}
+	for _, cm := range m.contm {
+		rows = append(rows, table.Row{cm.Name, cm.CPU, cm.Mem})
+	}
+	m.mtable.SetRows(rows)
+	return m
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
+
+	// Metrics are collected asynchronously. They must be consumed here, before
+	// the filter branch returns early, otherwise metricsBusy never clears and a
+	// collection started just before the user typed "/" blocks all future ones.
+	if msg, ok := msg.(metricsMsg); ok {
+		return m.applyMetrics(msg), nil
+	}
 
 	if m.filtering {
 		switch msg := msg.(type) {
@@ -470,16 +489,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case logsMsg:
 		m.logs = []string(msg)
 		m.viewport.SetContent(strings.Join(m.logs, "\n"))
-		return m, nil
-	case metricsMsg:
-		m.metricsBusy = false
-		m.hostm = msg.host
-		m.contm = msg.cont
-		rows := []table.Row{}
-		for _, cm := range m.contm {
-			rows = append(rows, table.Row{cm.Name, cm.CPU, cm.Mem})
-		}
-		m.mtable.SetRows(rows)
 		return m, nil
 	case errMsg:
 		m.err = error(msg)

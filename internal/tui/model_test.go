@@ -95,6 +95,31 @@ func TestContainerNameFallsBackToID(t *testing.T) {
 	}
 }
 
+// TestMetricsMessageClearsBusyWhileFiltering ensures an in-flight metrics
+// collection cannot leave metricsBusy set forever when the user opens the
+// filter box before the result arrives.
+func TestMetricsMessageClearsBusyWhileFiltering(t *testing.T) {
+	m := newTestModel(t)
+	m.filtering = true
+	m.filterInput.Focus()
+	m.metricsBusy = true
+
+	updated, _ := m.Update(metricsMsg{
+		cont: []ContMetrics{{Name: "orvyn-loki", CPU: "1.0%", Mem: "1.0MB"}},
+	})
+	got := updated.(model)
+
+	if got.metricsBusy {
+		t.Error("metricsBusy was not cleared by a metricsMsg during filtering")
+	}
+	if !got.filtering {
+		t.Error("filtering state was dropped by an unrelated message")
+	}
+	if len(got.contm) != 1 || got.contm[0].Name != "orvyn-loki" {
+		t.Errorf("metrics payload was not applied: %+v", got.contm)
+	}
+}
+
 // TestViewShowsErrorScreen keeps the fatal-error path reachable.
 func TestViewShowsErrorScreen(t *testing.T) {
 	m := newTestModel(t)
