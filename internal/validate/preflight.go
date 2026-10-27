@@ -3,14 +3,14 @@ package validate
 import (
 	"context"
 	"fmt"
-	"github.com/fredy-arias/orvyn/internal/executil"
+	"github.com/Alfredo-capitia/Orvyn/internal/executil"
 	"net"
 	"os"
 	"runtime"
 	"syscall"
 	"time"
 
-	"github.com/fredy-arias/orvyn/internal/docker"
+	"github.com/Alfredo-capitia/Orvyn/internal/docker"
 )
 
 type Check struct {

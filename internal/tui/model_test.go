@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Alfredo-capitia/Orvyn/internal/docker"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/fredy-arias/orvyn/internal/docker"
 )
 
 func newTestModel(t *testing.T) model {

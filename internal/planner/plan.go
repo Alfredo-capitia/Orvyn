@@ -6,10 +6,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/fredy-arias/orvyn/internal/config"
-	"github.com/fredy-arias/orvyn/internal/discovery"
-	"github.com/fredy-arias/orvyn/internal/docker"
-	"github.com/fredy-arias/orvyn/pkg/types"
+	"github.com/Alfredo-capitia/Orvyn/internal/config"
+	"github.com/Alfredo-capitia/Orvyn/internal/discovery"
+	"github.com/Alfredo-capitia/Orvyn/internal/docker"
+	"github.com/Alfredo-capitia/Orvyn/pkg/types"
 )
 
 func Generate(ctx context.Context) (*types.Plan, error) {

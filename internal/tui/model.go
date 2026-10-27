@@ -6,13 +6,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Alfredo-capitia/Orvyn/internal/discovery"
+	"github.com/Alfredo-capitia/Orvyn/internal/docker"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/fredy-arias/orvyn/internal/discovery"
-	"github.com/fredy-arias/orvyn/internal/docker"
 )
 
 type viewState int
@@ -40,7 +40,6 @@ type model struct {
 	width        int
 	height       int
 	ready        bool
-	dc           *docker.Client
 	filterInput  textinput.Model
 	filtering    bool
 	filterActive bool

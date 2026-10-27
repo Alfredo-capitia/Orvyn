@@ -6,11 +6,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/fredy-arias/orvyn/internal/config"
-	"github.com/fredy-arias/orvyn/internal/discovery"
-	"github.com/fredy-arias/orvyn/internal/docker"
-	"github.com/fredy-arias/orvyn/internal/executil"
-	"github.com/fredy-arias/orvyn/internal/stack"
+	"github.com/Alfredo-capitia/Orvyn/internal/config"
+	"github.com/Alfredo-capitia/Orvyn/internal/discovery"
+	"github.com/Alfredo-capitia/Orvyn/internal/docker"
+	"github.com/Alfredo-capitia/Orvyn/internal/executil"
+	"github.com/Alfredo-capitia/Orvyn/internal/stack"
 	"github.com/spf13/cobra"
 )
 
@@ -21,11 +21,6 @@ var upCmd = &cobra.Command{
 		cfg := config.Default()
 		ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 		defer cancel()
-
-		detached, _ := cmd.Flags().GetBool("detach")
-		if detached {
-			// default behavior
-		}
 
 		// Ensure stack files exist
 		if _, err := os.Stat(cfg.StackCompose()); os.IsNotExist(err) {

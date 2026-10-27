@@ -12,7 +12,7 @@ Orvyn follows strict security principles. See the full security strategy in the 
 
 ## Security Features
 
-- **Secret redaction** - Automatic redaction of tokens, keys, passwords from logs/output
+- **Secret redaction** - Best-effort, regex-based masking of some token, key and password patterns in streamed logs. It is not a guarantee; see [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md#secret-redaction-limits) for what is and is not covered
 - **Path traversal protection** - All file paths validated with `fsutil.SafeJoin`
 - **No shell injection** - Docker API used, args passed separately
 - **Audit logging** - Security-relevant events logged without secrets

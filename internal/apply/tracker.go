@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/fredy-arias/orvyn/internal/config"
+	"github.com/Alfredo-capitia/Orvyn/internal/config"
 )
 
 type Step struct {

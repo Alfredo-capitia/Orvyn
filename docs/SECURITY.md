@@ -20,7 +20,7 @@ Orvyn is local-first and privacy by default. Security is mandatory and enforced 
 6. Orvyn <-> dependencies
 
 ## Core Controls
-- Secret redaction
+- Secret redaction (best-effort, regex-based; covered and uncovered cases in [THREAT-MODEL.md](THREAT-MODEL.md#secret-redaction-limits))
 - Path traversal/symlink protection
 - No shell execution with concatenation
 - Audit logging without secrets

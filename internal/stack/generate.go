@@ -5,9 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/fredy-arias/orvyn/internal/config"
-	"github.com/fredy-arias/orvyn/internal/fsutil"
-	"github.com/fredy-arias/orvyn/internal/resources"
+	"github.com/Alfredo-capitia/Orvyn/internal/config"
+	"github.com/Alfredo-capitia/Orvyn/internal/fsutil"
+	"github.com/Alfredo-capitia/Orvyn/internal/resources"
 )
 
 func ComposeContent() string {

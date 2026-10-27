@@ -6,8 +6,8 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/fredy-arias/orvyn/internal/discovery"
-	"github.com/fredy-arias/orvyn/internal/docker"
+	"github.com/Alfredo-capitia/Orvyn/internal/discovery"
+	"github.com/Alfredo-capitia/Orvyn/internal/docker"
 	"github.com/spf13/cobra"
 )
 
@@ -91,7 +91,7 @@ func isTerminal() bool {
 var completionCmd = &cobra.Command{
 	Use:       "completion [bash|zsh|fish|powershell]",
 	Short:     "Generate shell completion scripts",
-	Args:      cobra.ExactValidArgs(1),
+	Args:      cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
 	ValidArgs: []string{"bash", "zsh", "fish", "powershell"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		switch args[0] {

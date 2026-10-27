@@ -1,0 +1,19 @@
+# Reachable vulnerabilities accepted until an upstream fix exists.
+#
+# The check is blocking: the CI job fails for every reachable vulnerability that
+# is not listed here. Add a line only with a link to the advisory, the reason
+# there is no fix, and a date to revisit. Remove it as soon as a fixed release
+# is available.
+#
+# GO-2026-4887 and GO-2026-4883 are reachable from the Docker client calls in
+# internal/docker. Both affect github.com/docker/docker v28.5.2+incompatible,
+# the newest published version, and both are marked "Fixed in: N/A" in the Go
+# vulnerability database (checked 2026-10-27).
+#
+# govulncheck also reports GO-2026-5617, GO-2026-5668 and GO-2026-5746 at module
+# level for the same dependency. They are not reachable from Orvyn, so they do
+# not block; they would if a future change called the affected symbols.
+#
+# Revisit by 2027-01-31 or when a new docker/docker release is published.
+GO-2026-4887
+GO-2026-4883
