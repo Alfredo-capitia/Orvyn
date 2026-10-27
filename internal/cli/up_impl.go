@@ -22,11 +22,6 @@ var upCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 		defer cancel()
 
-		detached, _ := cmd.Flags().GetBool("detach")
-		if detached {
-			// default behavior
-		}
-
 		// Ensure stack files exist
 		if _, err := os.Stat(cfg.StackCompose()); os.IsNotExist(err) {
 			fmt.Println("[UP] Generating stack files...")

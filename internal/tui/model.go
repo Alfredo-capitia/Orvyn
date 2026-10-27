@@ -40,7 +40,6 @@ type model struct {
 	width        int
 	height       int
 	ready        bool
-	dc           *docker.Client
 	filterInput  textinput.Model
 	filtering    bool
 	filterActive bool
