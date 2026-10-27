@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -100,43 +101,86 @@ func getContainerMetrics(dc *docker.Client) []ContMetrics {
 	if err != nil {
 		return res
 	}
+	running := make([]bool, 0, len(conts))
 	for _, c := range conts {
 		if v, ok := c.Labels["com.orvyn.managed"]; !ok || v != "true" {
 			continue
 		}
-		name := c.Names[0]
-		if len(name) > 0 && name[0] == '/' {
-			name = name[1:]
+		name := c.ID
+		if len(c.Names) > 0 {
+			name = c.Names[0]
+			if len(name) > 0 && name[0] == '/' {
+				name = name[1:]
+			}
 		}
+		// Stopped containers keep their row with placeholder metrics: Docker
+		// returns an empty stats record for them, which must not render as 0%.
 		res = append(res, ContMetrics{ID: c.ID, Name: name, CPU: "-", Mem: "-"})
+		running = append(running, c.State == "running")
 	}
-	statsCtx, scancel := context.WithTimeout(context.Background(), 6*time.Second)
-	defer scancel()
+
+	// A non-streaming stats call blocks for two samples, so requests run
+	// concurrently under one shared deadline instead of serially.
+	refreshCtx, refreshCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer refreshCancel()
+
+	sem := make(chan struct{}, 4)
+	var wg sync.WaitGroup
 	for i := range res {
-		rc, err := dc.ContainerStats(statsCtx, res[i].ID, false)
-		if err != nil {
+		if !running[i] {
 			continue
 		}
-		var stats container.StatsResponse
-		if err := json.NewDecoder(rc).Decode(&stats); err != nil {
-			rc.Close()
-			continue
-		}
-		rc.Close()
-		cpuDelta := stats.CPUStats.CPUUsage.TotalUsage - stats.PreCPUStats.CPUUsage.TotalUsage
-		sysDelta := stats.CPUStats.SystemUsage - stats.PreCPUStats.SystemUsage
-		cpuPct := 0.0
-		if sysDelta > 0 && cpuDelta > 0 && len(stats.CPUStats.CPUUsage.PercpuUsage) > 0 {
-			cpuPct = float64(cpuDelta) / float64(sysDelta) * float64(len(stats.CPUStats.CPUUsage.PercpuUsage)) * 100.0
-		}
-		memUsage := stats.MemoryStats.Usage
-		memLimit := stats.MemoryStats.Limit
-		memStr := fmt.Sprintf("%.1fMB", float64(memUsage)/1024/1024)
-		if memLimit > 0 {
-			memStr = fmt.Sprintf("%.1fMB / %.1fMB", float64(memUsage)/1024/1024, float64(memLimit)/1024/1024)
-		}
-		res[i].CPU = fmt.Sprintf("%.1f%%", cpuPct)
-		res[i].Mem = memStr
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			statsCtx, scancel := context.WithTimeout(refreshCtx, 6*time.Second)
+			defer scancel()
+
+			rc, err := dc.ContainerStats(statsCtx, res[i].ID, false)
+			if err != nil {
+				return
+			}
+			defer rc.Close()
+
+			var stats container.StatsResponse
+			if err := json.NewDecoder(rc).Decode(&stats); err != nil {
+				return
+			}
+			res[i].CPU, res[i].Mem = formatContainerStats(&stats)
+		}(i)
 	}
+	wg.Wait()
 	return res
+}
+
+func formatContainerStats(stats *container.StatsResponse) (cpu, mem string) {
+	cpuDelta := stats.CPUStats.CPUUsage.TotalUsage - stats.PreCPUStats.CPUUsage.TotalUsage
+	sysDelta := stats.CPUStats.SystemUsage - stats.PreCPUStats.SystemUsage
+	// cgroup v2 hosts leave PercpuUsage empty, so OnlineCPUs is the reliable
+	// multiplier and the per-CPU slice length is only a fallback.
+	cpuCount := stats.CPUStats.OnlineCPUs
+	if cpuCount == 0 {
+		cpuCount = uint32(len(stats.CPUStats.CPUUsage.PercpuUsage))
+	}
+	cpuPct := 0.0
+	if sysDelta > 0 && cpuDelta > 0 && cpuCount > 0 {
+		cpuPct = float64(cpuDelta) / float64(sysDelta) * float64(cpuCount) * 100.0
+	}
+
+	// MemoryStats.Usage includes page cache; subtract the reclaimable portion
+	// so the value matches what `docker stats` reports.
+	memUsage := stats.MemoryStats.Usage
+	if v := stats.MemoryStats.Stats["total_inactive_file"]; v > 0 && v < memUsage {
+		memUsage -= v
+	} else if v := stats.MemoryStats.Stats["inactive_file"]; v > 0 && v < memUsage {
+		memUsage -= v
+	}
+	memStr := fmt.Sprintf("%.1fMB", float64(memUsage)/1024/1024)
+	if stats.MemoryStats.Limit > 0 {
+		memStr = fmt.Sprintf("%.1fMB / %.1fMB", float64(memUsage)/1024/1024, float64(stats.MemoryStats.Limit)/1024/1024)
+	}
+	return fmt.Sprintf("%.1f%%", cpuPct), memStr
 }

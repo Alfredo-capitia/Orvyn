@@ -47,6 +47,7 @@ type model struct {
 	filterQuery  string
 	details      []table.Row
 	healthCache  map[string]string
+	metricsBusy  bool
 }
 
 type tickMsg time.Time
@@ -248,6 +249,16 @@ func metricsCmd() tea.Cmd {
 	}
 }
 
+// startMetrics returns nil when a collection is already running, so overlapping
+// ticks cannot pile up requests to the Docker daemon.
+func (m *model) startMetrics() tea.Cmd {
+	if m.metricsBusy {
+		return nil
+	}
+	m.metricsBusy = true
+	return metricsCmd()
+}
+
 func (m model) fetchLogs() tea.Cmd {
 	if len(m.containers) == 0 {
 		return nil
@@ -343,16 +354,33 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else if m.view == viewLogs {
 				cmds = append(cmds, m.fetchLogs())
 			} else if m.view == viewMetrics {
-				cmds = append(cmds, metricsCmd())
+				cmds = append(cmds, m.startMetrics())
 			}
 			return m, tea.Batch(cmds...)
+		case "1":
+			m.view = viewOverview
+			return m, nil
+		case "2":
+			if m.view != viewLogs {
+				m.view = viewLogs
+				cmds = append(cmds, m.fetchLogs())
+			}
+			return m, tea.Batch(cmds...)
+		case "3":
+			m.view = viewMetrics
+			cmds = append(cmds, m.startMetrics())
+			return m, tea.Batch(cmds...)
+		case "4":
+			m.view = viewDetails
+			m.buildDetails()
+			return m, nil
 		case "tab":
 			if m.view == viewOverview {
 				m.view = viewLogs
 				cmds = append(cmds, m.fetchLogs())
 			} else if m.view == viewLogs {
 				m.view = viewMetrics
-				cmds = append(cmds, metricsCmd())
+				cmds = append(cmds, m.startMetrics())
 			} else if m.view == viewMetrics {
 				m.view = viewDetails
 			} else if m.view == viewDetails {
@@ -385,7 +413,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "m":
 			m.view = viewMetrics
-			cmds = append(cmds, metricsCmd())
+			cmds = append(cmds, m.startMetrics())
 			return m, tea.Batch(cmds...)
 		case "o":
 			m.view = viewOverview
@@ -411,7 +439,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, refreshCmd())
 		}
 		if m.view == viewMetrics {
-			cmds = append(cmds, metricsCmd())
+			cmds = append(cmds, m.startMetrics())
 		}
 		return m, tea.Batch(cmds...)
 	case refreshMsg:
@@ -444,6 +472,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.SetContent(strings.Join(m.logs, "\n"))
 		return m, nil
 	case metricsMsg:
+		m.metricsBusy = false
 		m.hostm = msg.host
 		m.contm = msg.cont
 		rows := []table.Row{}
@@ -533,7 +562,7 @@ func (m model) View() string {
 		host += fmt.Sprintf("  Load: %.2f   Uptime: %s\n", h.CPULoad1, h.Uptime)
 		host += fmt.Sprintf("  RAM:   %.1fGB / %.1fGB (%.1f%%) used\n", float64(h.MemUsed)/1024/1024/1024, float64(h.MemTotal)/1024/1024/1024, memPct)
 		host += fmt.Sprintf("  DISK:  %.1fGB / %.1fGB (%.1f%%) used  (/)\n", float64(h.DiskUsed)/1024/1024/1024, float64(h.DiskTotal)/1024/1024/1024, diskPct)
-		ctitle := lipgloss.NewStyle().Bold(true).Render("\nCONTAINERS (managed)")
+		ctitle := lipgloss.NewStyle().Bold(true).Render("CONTAINERS (managed)")
 		help := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render("r: refresh • o: overview • d: details • l: logs • /: filter • Tab: switch • q: quit")
 		return fmt.Sprintf("%s\n%s\n\n%s\n%s\n\n%s\n\n%s\n", title, tabBar, host, ctitle, m.mtable.View(), help)
 	}
@@ -565,6 +594,7 @@ func (m model) View() string {
 
   ↑/↓        Navigate
   Tab        Cycle views (Overview → Logs → Metrics → Details → Help)
+  1..4       Jump to Overview / Logs / Metrics / Details
   /          Filter containers by name/service (Overview)
   Esc        Clear filter
   d          View details for selected service
