@@ -125,17 +125,43 @@ jobs:
             exit 1
           fi
 
+          # One baseline per image: an exception accepted for one image must not
+          # hide the same advisory in another. Entries inside each file are
+          # scoped by package PURL, so a dependency or base image bump brings the
+          # finding back for review.
           for image in "${images[@]}"; do
+            baseline=".github/trivy/$(printf '%s' "$image" | tr '/:' '__').yaml"
+            if [ ! -f "$baseline" ]; then
+              echo "::error::Missing Trivy baseline for $image (expected $baseline). Fix the findings or add a reviewed baseline."
+              exit 1
+            fi
             echo "::group::Scanning $image"
             trivy image \
               --scanners vuln \
               --severity HIGH,CRITICAL \
-              --ignorefile .trivyignore.yaml \
+              --ignorefile "$baseline" \
               --timeout 20m \
               --exit-code 1 \
               --no-progress \
               "$image"
             echo "::endgroup::"
+          done
+
+          # A baseline left behind after a tag change silently widens the
+          # exceptions. Fail instead, so stale files are deleted on purpose.
+          for baseline in .github/trivy/*.yaml; do
+            name=$(basename "$baseline" .yaml)
+            found=false
+            for image in "${images[@]}"; do
+              if [ "$(printf '%s' "$image" | tr '/:' '__')" = "$name" ]; then
+                found=true
+                break
+              fi
+            done
+            if [ "$found" = false ]; then
+              echo "::error::Stale Trivy baseline $baseline does not match any image in internal/stack/generate.go"
+              exit 1
+            fi
           done
 
   codeql:
