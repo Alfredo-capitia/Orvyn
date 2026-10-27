@@ -3,16 +3,18 @@ package cli
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
-	"github.com/fredy-arias/orvyn/internal/executil"
 	"os"
 	"strings"
 	"time"
 
 	applytrack "github.com/fredy-arias/orvyn/internal/apply"
 	"github.com/fredy-arias/orvyn/internal/audit"
+	"github.com/fredy-arias/orvyn/internal/backup"
 	"github.com/fredy-arias/orvyn/internal/config"
 	"github.com/fredy-arias/orvyn/internal/docker"
+	"github.com/fredy-arias/orvyn/internal/executil"
 	"github.com/fredy-arias/orvyn/internal/planner"
 	"github.com/fredy-arias/orvyn/internal/stack"
 	"github.com/fredy-arias/orvyn/internal/validate"
@@ -108,6 +110,28 @@ var applyCmd = &cobra.Command{
 		sess.AddStep("ensure_dirs", "done", cfg.StackDir)
 		sess.AddCreated(cfg.StackDir)
 		sess.Save()
+
+		// Snapshot the previous stack/config before GenerateAll overwrites files,
+		// so a bad apply can always be rolled back with 'orvyn restore'.
+		sess.AddStep("backup", "in_progress", cfg.BackupDir)
+		sess.Save()
+		backupPath, backupErr := backup.Create(cfg.BackupDir, backupRoots(cfg)...)
+		if errors.Is(backupErr, backup.ErrEmpty) {
+			sess.AddStep("backup", "skipped", cfg.BackupDir)
+			sess.Save()
+			fmt.Println("  [SKIP] Nothing to back up yet")
+		} else if backupErr != nil {
+			sess.AddStep("backup", "failed", cfg.BackupDir)
+			sess.Status = "failed"
+			sess.Save()
+			applytrack.PrintRecovery(sess)
+			logger.Log(audit.Event{Operation: "apply", Result: "failed"})
+			return fmt.Errorf("backup before apply: %w", backupErr)
+		} else {
+			sess.AddStep("backup", "done", backupPath)
+			sess.Save()
+			fmt.Printf("  [OK] Backup written to %s\n", backupPath)
+		}
 
 		sess.AddStep("generate_stack", "in_progress", cfg.StackDir)
 		sess.Save()

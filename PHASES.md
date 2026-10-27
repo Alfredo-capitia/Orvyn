@@ -77,7 +77,7 @@
 ## Fase 9: Maintenance [COMPLETED]
 - [x] orvyn prune
 - [x] orvyn upgrade
-- [ ] Backup real + `orvyn restore` (planeado, ainda não implementado — ver nota abaixo)
+- [x] Backup real + `orvyn restore`
 
 ## Fase 10: Hardening de Segurança [COMPLETED]
 - [x] executil allowlist para todas as chamadas externas
@@ -104,8 +104,15 @@
 - [x] Health cache via `docker inspect`
 - [x] Navegação por teclado estilo k9s
 
+## Fase 13: Backup & Restore [COMPLETED]
+- [x] `internal/backup` - arquivo tar.gz com timestamp em `BackupDir`
+- [x] `orvyn backup` (com `--list`)
+- [x] `orvyn restore [backup]` (`--latest`, `--yes`, confirmação interativa)
+- [x] Backup automático no `apply` antes de escrever ficheiros
+- [x] Restore fail-closed: valida o arquivo inteiro num diretório temporário antes de mover
+- [x] Rejeição de path traversal, caminhos absolutos, symlinks, roots desconhecidos e entradas acima do limite
+
 ## Próximos passos
-- [ ] Implementar backup em `apply` e comando `orvyn restore` (hoje `apply` anuncia que cria backups mas não cria)
 - [ ] Reintroduzir `govulncheck` scoped (`./cmd/... ./internal/... ./pkg/...`) quando docker/docker tiver correção
 - [ ] Testes de integração para o TUI e para `internal/docker`
 - [ ] Exportar métricas do próprio Orvyn (opcional)
