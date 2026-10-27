@@ -47,6 +47,7 @@ type model struct {
 	filterQuery  string
 	details      []table.Row
 	healthCache  map[string]string
+	metricsBusy  bool
 }
 
 type tickMsg time.Time
@@ -111,15 +112,21 @@ func (m model) Init() tea.Cmd {
 	return tea.Batch(tickCmd(), refreshCmd(), metricsCmd())
 }
 
+// containerName returns the display name for a container, falling back to the
+// short ID when Docker reports no name, and strips the leading slash.
+func containerName(ct docker.Container) string {
+	if len(ct.Names) == 0 {
+		return ct.ID
+	}
+	return strings.TrimPrefix(ct.Names[0], "/")
+}
+
 func (m model) applyFilter() {
 	if !m.filterActive || m.filterQuery == "" {
 		m.filtered = nil
 		rows := []table.Row{}
 		for _, ct := range m.containers {
-			name := ct.Names[0]
-			if len(name) > 0 && name[0] == '/' {
-				name = name[1:]
-			}
+			name := containerName(ct)
 			svc := ct.Labels["com.orvyn.service"]
 			if svc == "" {
 				svc = "-"
@@ -143,10 +150,7 @@ func (m model) applyFilter() {
 	filtered := []docker.Container{}
 	rows := []table.Row{}
 	for _, ct := range m.containers {
-		name := ct.Names[0]
-		if len(name) > 0 && name[0] == '/' {
-			name = name[1:]
-		}
+		name := containerName(ct)
 		svc := ct.Labels["com.orvyn.service"]
 		if svc == "" {
 			svc = "-"
@@ -195,10 +199,7 @@ func (m model) buildDetails() {
 		idx = 0
 	}
 	ct := list[idx]
-	name := ct.Names[0]
-	if len(name) > 0 && name[0] == '/' {
-		name = name[1:]
-	}
+	name := containerName(ct)
 	svc := ct.Labels["com.orvyn.service"]
 	if svc == "" {
 		svc = "-"
@@ -248,6 +249,16 @@ func metricsCmd() tea.Cmd {
 	}
 }
 
+// startMetrics returns nil when a collection is already running, so overlapping
+// ticks cannot pile up requests to the Docker daemon.
+func (m *model) startMetrics() tea.Cmd {
+	if m.metricsBusy {
+		return nil
+	}
+	m.metricsBusy = true
+	return metricsCmd()
+}
+
 func (m model) fetchLogs() tea.Cmd {
 	if len(m.containers) == 0 {
 		return nil
@@ -288,9 +299,28 @@ func (m model) fetchLogs() tea.Cmd {
 	}
 }
 
+func (m model) applyMetrics(msg metricsMsg) model {
+	m.metricsBusy = false
+	m.hostm = msg.host
+	m.contm = msg.cont
+	rows := []table.Row{}
+	for _, cm := range m.contm {
+		rows = append(rows, table.Row{cm.Name, cm.CPU, cm.Mem})
+	}
+	m.mtable.SetRows(rows)
+	return m
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
+
+	// Metrics are collected asynchronously. They must be consumed here, before
+	// the filter branch returns early, otherwise metricsBusy never clears and a
+	// collection started just before the user typed "/" blocks all future ones.
+	if msg, ok := msg.(metricsMsg); ok {
+		return m.applyMetrics(msg), nil
+	}
 
 	if m.filtering {
 		switch msg := msg.(type) {
@@ -343,16 +373,33 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else if m.view == viewLogs {
 				cmds = append(cmds, m.fetchLogs())
 			} else if m.view == viewMetrics {
-				cmds = append(cmds, metricsCmd())
+				cmds = append(cmds, m.startMetrics())
 			}
 			return m, tea.Batch(cmds...)
+		case "1":
+			m.view = viewOverview
+			return m, nil
+		case "2":
+			if m.view != viewLogs {
+				m.view = viewLogs
+				cmds = append(cmds, m.fetchLogs())
+			}
+			return m, tea.Batch(cmds...)
+		case "3":
+			m.view = viewMetrics
+			cmds = append(cmds, m.startMetrics())
+			return m, tea.Batch(cmds...)
+		case "4":
+			m.view = viewDetails
+			m.buildDetails()
+			return m, nil
 		case "tab":
 			if m.view == viewOverview {
 				m.view = viewLogs
 				cmds = append(cmds, m.fetchLogs())
 			} else if m.view == viewLogs {
 				m.view = viewMetrics
-				cmds = append(cmds, metricsCmd())
+				cmds = append(cmds, m.startMetrics())
 			} else if m.view == viewMetrics {
 				m.view = viewDetails
 			} else if m.view == viewDetails {
@@ -385,7 +432,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "m":
 			m.view = viewMetrics
-			cmds = append(cmds, metricsCmd())
+			cmds = append(cmds, m.startMetrics())
 			return m, tea.Batch(cmds...)
 		case "o":
 			m.view = viewOverview
@@ -411,7 +458,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, refreshCmd())
 		}
 		if m.view == viewMetrics {
-			cmds = append(cmds, metricsCmd())
+			cmds = append(cmds, m.startMetrics())
 		}
 		return m, tea.Batch(cmds...)
 	case refreshMsg:
@@ -442,15 +489,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case logsMsg:
 		m.logs = []string(msg)
 		m.viewport.SetContent(strings.Join(m.logs, "\n"))
-		return m, nil
-	case metricsMsg:
-		m.hostm = msg.host
-		m.contm = msg.cont
-		rows := []table.Row{}
-		for _, cm := range m.contm {
-			rows = append(rows, table.Row{cm.Name, cm.CPU, cm.Mem})
-		}
-		m.mtable.SetRows(rows)
 		return m, nil
 	case errMsg:
 		m.err = error(msg)
@@ -506,12 +544,7 @@ func (m model) View() string {
 		if len(m.containers) > 0 {
 			idx := m.table.Cursor()
 			if idx >= 0 && idx < len(m.containers) {
-				ct := m.containers[idx]
-				name := ct.Names[0]
-				if len(name) > 0 && name[0] == '/' {
-					name = name[1:]
-				}
-				svc = name
+				svc = containerName(m.containers[idx])
 			}
 		}
 		logTitle := lipgloss.NewStyle().Bold(true).Render(fmt.Sprintf("Logs: %s (tail)", svc))
@@ -533,7 +566,7 @@ func (m model) View() string {
 		host += fmt.Sprintf("  Load: %.2f   Uptime: %s\n", h.CPULoad1, h.Uptime)
 		host += fmt.Sprintf("  RAM:   %.1fGB / %.1fGB (%.1f%%) used\n", float64(h.MemUsed)/1024/1024/1024, float64(h.MemTotal)/1024/1024/1024, memPct)
 		host += fmt.Sprintf("  DISK:  %.1fGB / %.1fGB (%.1f%%) used  (/)\n", float64(h.DiskUsed)/1024/1024/1024, float64(h.DiskTotal)/1024/1024/1024, diskPct)
-		ctitle := lipgloss.NewStyle().Bold(true).Render("\nCONTAINERS (managed)")
+		ctitle := lipgloss.NewStyle().Bold(true).Render("CONTAINERS (managed)")
 		help := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render("r: refresh • o: overview • d: details • l: logs • /: filter • Tab: switch • q: quit")
 		return fmt.Sprintf("%s\n%s\n\n%s\n%s\n\n%s\n\n%s\n", title, tabBar, host, ctitle, m.mtable.View(), help)
 	}
@@ -547,12 +580,7 @@ func (m model) View() string {
 		if len(list) > 0 {
 			idx := m.table.Cursor()
 			if idx >= 0 && idx < len(list) {
-				ct := list[idx]
-				name := ct.Names[0]
-				if len(name) > 0 && name[0] == '/' {
-					name = name[1:]
-				}
-				svc = name
+				svc = containerName(list[idx])
 			}
 		}
 		dtitle := lipgloss.NewStyle().Bold(true).Render(fmt.Sprintf("Details: %s", svc))
@@ -565,6 +593,7 @@ func (m model) View() string {
 
   ↑/↓        Navigate
   Tab        Cycle views (Overview → Logs → Metrics → Details → Help)
+  1..4       Jump to Overview / Logs / Metrics / Details
   /          Filter containers by name/service (Overview)
   Esc        Clear filter
   d          View details for selected service
