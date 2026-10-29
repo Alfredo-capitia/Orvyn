@@ -1,0 +1,435 @@
+# Accepted HIGH/CRITICAL vulnerabilities for grafana/alloy:v1.5.1.
+#
+# The image-scan CI job is blocking: it fails on any HIGH/CRITICAL finding
+# in this image that is not listed here. Entries are scoped by package PURL,
+# so bumping a dependency or base image brings the finding back for review
+# instead of silently inheriting the exception.
+#
+# Rules:
+# - Do not add entries to make a PR green. Fix the finding or bump the tag.
+# - Regenerate this file when the pinned tag changes and keep it accurate.
+# - When expired_at passes, Trivy reports the finding again and the job
+#   fails, forcing a re-review.
+#
+# Generated from a Trivy v0.76.1 scan of this exact image on 2026-10-28.
+vulnerabilities:
+  - id: CVE-2024-45337
+    purls:
+      - "pkg:golang/golang.org/x/crypto@v0.29.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2024-45338
+    purls:
+      - "pkg:golang/golang.org/x/net@v0.31.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2025-21613
+    purls:
+      - "pkg:golang/github.com/go-git/go-git/v5@v5.11.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2025-21614
+    purls:
+      - "pkg:golang/github.com/go-git/go-git/v5@v5.11.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2025-22868
+    purls:
+      - "pkg:golang/golang.org/x/oauth2@v0.23.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2025-22869
+    purls:
+      - "pkg:golang/golang.org/x/crypto@v0.29.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2025-29786
+    purls:
+      - "pkg:golang/github.com/expr-lang/expr@v1.16.9"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2025-30204
+    purls:
+      - "pkg:golang/github.com/golang-jwt/jwt/v4@v4.5.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2025-30204
+    purls:
+      - "pkg:golang/github.com/golang-jwt/jwt/v5@v5.2.1"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2025-31133
+    purls:
+      - "pkg:golang/github.com/opencontainers/runc@v1.2.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2025-47913
+    purls:
+      - "pkg:golang/golang.org/x/crypto@v0.29.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2025-52565
+    purls:
+      - "pkg:golang/github.com/opencontainers/runc@v1.2.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2025-52881
+    purls:
+      - "pkg:golang/github.com/opencontainers/runc@v1.2.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2025-52881
+    purls:
+      - "pkg:golang/github.com/opencontainers/selinux@v1.11.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2025-61726
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2025-61729
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2025-63811
+    purls:
+      - "pkg:golang/github.com/dvsekhvalnov/jose2go@v1.6.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2025-68121
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2025-68156
+    purls:
+      - "pkg:golang/github.com/expr-lang/expr@v1.16.9"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2025-68973
+    purls:
+      - "pkg:deb/ubuntu/gpgv@2.4.4-2ubuntu17?arch=amd64&distro=ubuntu-24.04"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-111943
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-24051
+    purls:
+      - "pkg:golang/go.opentelemetry.io/otel/sdk@v1.31.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-25679
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-25681
+    purls:
+      - "pkg:golang/golang.org/x/net@v0.31.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-27136
+    purls:
+      - "pkg:golang/golang.org/x/net@v0.31.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-27145
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-32280
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-32281
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-32283
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-32286
+    purls:
+      - "pkg:golang/github.com/jackc/pgproto3/v2@v2.3.3"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-32287
+    purls:
+      - "pkg:golang/github.com/antchfx/xpath@v1.3.2"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-33186
+    purls:
+      - "pkg:golang/google.golang.org/grpc@v1.67.1"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-33811
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-33814
+    purls:
+      - "pkg:golang/golang.org/x/net@v0.31.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-33814
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-33818
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-34986
+    purls:
+      - "pkg:golang/github.com/go-jose/go-jose/v3@v3.0.3"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-39820
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-39821
+    purls:
+      - "pkg:golang/golang.org/x/net@v0.31.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-39821
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-39822
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-39828
+    purls:
+      - "pkg:golang/golang.org/x/crypto@v0.29.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-39829
+    purls:
+      - "pkg:golang/golang.org/x/crypto@v0.29.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-39830
+    purls:
+      - "pkg:golang/golang.org/x/crypto@v0.29.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-39831
+    purls:
+      - "pkg:golang/golang.org/x/crypto@v0.29.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-39832
+    purls:
+      - "pkg:golang/golang.org/x/crypto@v0.29.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-39835
+    purls:
+      - "pkg:golang/golang.org/x/crypto@v0.29.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-39836
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-39883
+    purls:
+      - "pkg:golang/go.opentelemetry.io/otel/sdk@v1.31.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-41567
+    purls:
+      - "pkg:golang/github.com/docker/docker@v27.1.1%2Bincompatible"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-41602
+    purls:
+      - "pkg:golang/github.com/apache/thrift@v0.21.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-42306
+    purls:
+      - "pkg:golang/github.com/docker/docker@v27.1.1%2Bincompatible"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-42499
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-42504
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-42508
+    purls:
+      - "pkg:golang/golang.org/x/crypto@v0.29.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-43871
+    purls:
+      - "pkg:golang/github.com/apache/thrift@v0.21.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-44973
+    purls:
+      - "pkg:golang/github.com/go-git/go-billy/v5@v5.5.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-45022
+    purls:
+      - "pkg:golang/github.com/go-git/go-git/v5@v5.11.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-45447
+    purls:
+      - "pkg:deb/ubuntu/libssl3t64@3.0.13-0ubuntu3.4?arch=amd64&distro=ubuntu-24.04"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-45447
+    purls:
+      - "pkg:deb/ubuntu/openssl@3.0.13-0ubuntu3.4?arch=amd64&distro=ubuntu-24.04"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-46595
+    purls:
+      - "pkg:golang/golang.org/x/crypto@v0.29.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-46597
+    purls:
+      - "pkg:golang/golang.org/x/crypto@v0.29.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-46600
+    purls:
+      - "pkg:golang/golang.org/x/net@v0.31.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-56851
+    purls:
+      - "pkg:golang/golang.org/x/text@v0.20.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-56852
+    purls:
+      - "pkg:golang/golang.org/x/text@v0.20.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-56853
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-56854
+    purls:
+      - "pkg:golang/golang.org/x/crypto@v0.29.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-56858
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-56859
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-56860
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-56862
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-56864
+    purls:
+      - "pkg:golang/golang.org/x/mod@v0.21.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-56865
+    purls:
+      - "pkg:golang/golang.org/x/mod@v0.21.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-63209
+    purls:
+      - "pkg:golang/github.com/klauspost/compress@v1.17.11"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-71556
+    purls:
+      - "pkg:golang/github.com/go-git/go-git/v5@v5.11.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-78667
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-78669
+    purls:
+      - "pkg:golang/golang.org/x/net@v0.31.0"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-78669
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-84304
+    purls:
+      - "pkg:golang/google.golang.org/grpc@v1.67.1"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-84445
+    purls:
+      - "pkg:golang/google.golang.org/grpc@v1.67.1"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-84782
+    purls:
+      - "pkg:deb/ubuntu/libssl3t64@3.0.13-0ubuntu3.4?arch=amd64&distro=ubuntu-24.04"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-84782
+    purls:
+      - "pkg:deb/ubuntu/openssl@3.0.13-0ubuntu3.4?arch=amd64&distro=ubuntu-24.04"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: CVE-2026-97031
+    purls:
+      - "pkg:golang/stdlib@v1.22.7"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
+  - id: GHSA-hrxh-6v49-42gf
+    purls:
+      - "pkg:golang/google.golang.org/grpc@v1.67.1"
+    statement: "Accepted for grafana/alloy:v1.5.1; depends on the pinned tag"
+    expired_at: 2026-11-30
