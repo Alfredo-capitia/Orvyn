@@ -2,28 +2,36 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/Alfredo-capitia/Orvyn/internal/discovery"
-	"github.com/Alfredo-capitia/Orvyn/internal/docker"
+	"github.com/Alfredo-capitia/Orvyn/internal/logs"
 	"github.com/spf13/cobra"
 )
 
 var logsCmd = &cobra.Command{
 	Use:   "logs [container|service]",
 	Short: "Show logs from a container",
+	Long: `Streams the logs of a container, one line at a time.
+
+Output is demultiplexed from the Docker stream and passed through best-effort
+secret redaction. Redaction is not a guarantee: see docs/THREAT-MODEL.md.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+		defer signal.Stop(sigCh)
 		go func() {
-			<-sigCh
-			cancel()
+			select {
+			case <-sigCh:
+				cancel()
+			case <-ctx.Done():
+			}
 		}()
 
 		follow, _ := cmd.Flags().GetBool("follow")
@@ -33,50 +41,11 @@ var logsCmd = &cobra.Command{
 		if len(args) == 0 {
 			return fmt.Errorf("container or service name required (e.g. orvyn logs loki)")
 		}
-		target := args[0]
 
-		dc, err := docker.New()
-		if err != nil {
-			return err
-		}
-		defer dc.Close()
-
-		var cID string
-		if found, err := dc.FindContainerByNameOrService(ctx, target); err == nil && found != nil {
-			cID = found.ID
-		} else {
-			if managed, err := discovery.ManagedStack(ctx); err == nil {
-				for _, ct := range managed {
-					name := ct.Names[0]
-					if len(name) > 0 && name[0] == '/' {
-						name = name[1:]
-					}
-					svc := ct.Labels["com.orvyn.service"]
-					if name == target || svc == target || name == "orvyn-"+target {
-						cID = ct.ID
-						break
-					}
-				}
+		if err := logs.Stream(ctx, os.Stdout, args[0], follow, tail, timestamps); err != nil {
+			if errors.Is(err, context.Canceled) {
+				return nil
 			}
-		}
-
-		if cID == "" {
-			return fmt.Errorf("container/service not found: %s", target)
-		}
-
-		id := cID
-		if len(id) > 12 {
-			id = id[:12]
-		}
-
-		rc, err := dc.ContainerLogs(ctx, id, follow, tail, timestamps)
-		if err != nil {
-			return err
-		}
-		defer rc.Close()
-
-		_, err = os.Stdout.ReadFrom(rc)
-		if err != nil && err != context.Canceled {
 			return err
 		}
 		return nil
