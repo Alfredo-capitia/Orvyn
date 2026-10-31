@@ -9,6 +9,7 @@ import (
 	"github.com/Alfredo-capitia/Orvyn/internal/config"
 	"github.com/Alfredo-capitia/Orvyn/internal/discovery"
 	"github.com/Alfredo-capitia/Orvyn/internal/executil"
+	"github.com/Alfredo-capitia/Orvyn/internal/stack"
 	"github.com/spf13/cobra"
 )
 
@@ -45,7 +46,11 @@ var rmCmd = &cobra.Command{
 			fmt.Printf("[RM] Warning: could not list managed containers: %v\n", err)
 		}
 
-		argsCmd := []string{"compose", "-f", cfg.StackCompose(), "down"}
+		if err := verifyProjectOwnership(ctx, cfg); err != nil {
+			return err
+		}
+
+		argsCmd := stack.ComposeArgs(cfg, "down")
 		if volumes {
 			argsCmd = append(argsCmd, "-v")
 			fmt.Println("[RM] Volumes will be REMOVED")

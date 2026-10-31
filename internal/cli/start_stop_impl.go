@@ -7,6 +7,7 @@ import (
 
 	"github.com/Alfredo-capitia/Orvyn/internal/config"
 	"github.com/Alfredo-capitia/Orvyn/internal/executil"
+	"github.com/Alfredo-capitia/Orvyn/internal/stack"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +21,7 @@ var startCmd = &cobra.Command{
 
 		if len(args) == 0 {
 			fmt.Println("[START] Starting Orvyn stack...")
-			out, err := executil.RunWithTimeout(ctx, 120*time.Second, "docker", "compose", "-f", cfg.StackCompose(), "start")
+			out, err := executil.RunWithTimeout(ctx, 120*time.Second, "docker", stack.ComposeArgs(cfg, "start")...)
 			if err != nil {
 				return err
 			}
@@ -31,7 +32,7 @@ var startCmd = &cobra.Command{
 
 		svc := args[0]
 		fmt.Printf("[START] Starting service %s...\n", svc)
-		out, err := executil.RunWithTimeout(ctx, 120*time.Second, "docker", "compose", "-f", cfg.StackCompose(), "start", svc)
+		out, err := executil.RunWithTimeout(ctx, 120*time.Second, "docker", stack.ComposeArgs(cfg, "start", svc)...)
 		if err != nil {
 			return err
 		}
@@ -51,7 +52,7 @@ var stopCmd = &cobra.Command{
 
 		if len(args) == 0 {
 			fmt.Println("[STOP] Stopping Orvyn stack...")
-			out, err := executil.RunWithTimeout(ctx, 120*time.Second, "docker", "compose", "-f", cfg.StackCompose(), "stop")
+			out, err := executil.RunWithTimeout(ctx, 120*time.Second, "docker", stack.ComposeArgs(cfg, "stop")...)
 			if err != nil {
 				return err
 			}
@@ -62,7 +63,7 @@ var stopCmd = &cobra.Command{
 
 		svc := args[0]
 		fmt.Printf("[STOP] Stopping service %s...\n", svc)
-		out, err := executil.RunWithTimeout(ctx, 120*time.Second, "docker", "compose", "-f", cfg.StackCompose(), "stop", svc)
+		out, err := executil.RunWithTimeout(ctx, 120*time.Second, "docker", stack.ComposeArgs(cfg, "stop", svc)...)
 		if err != nil {
 			return err
 		}
@@ -82,7 +83,7 @@ var restartCmd = &cobra.Command{
 
 		if len(args) == 0 {
 			fmt.Println("[RESTART] Restarting Orvyn stack...")
-			out, err := executil.RunWithTimeout(ctx, 180*time.Second, "docker", "compose", "-f", cfg.StackCompose(), "restart")
+			out, err := executil.RunWithTimeout(ctx, 180*time.Second, "docker", stack.ComposeArgs(cfg, "restart")...)
 			if err != nil {
 				return err
 			}
@@ -93,7 +94,7 @@ var restartCmd = &cobra.Command{
 
 		svc := args[0]
 		fmt.Printf("[RESTART] Restarting service %s...\n", svc)
-		out, err := executil.RunWithTimeout(ctx, 180*time.Second, "docker", "compose", "-f", cfg.StackCompose(), "restart", svc)
+		out, err := executil.RunWithTimeout(ctx, 180*time.Second, "docker", stack.ComposeArgs(cfg, "restart", svc)...)
 		if err != nil {
 			return err
 		}

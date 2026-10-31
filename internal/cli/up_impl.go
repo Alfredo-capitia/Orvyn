@@ -41,7 +41,7 @@ var upCmd = &cobra.Command{
 		}
 
 		fmt.Println("[UP] Starting stack with docker compose up -d...")
-		out, err := executil.RunWithTimeout(ctx, 180*time.Second, "docker", "compose", "-f", cfg.StackCompose(), "up", "-d")
+		out, err := executil.RunWithTimeout(ctx, 180*time.Second, "docker", stack.ComposeArgs(cfg, "up", "-d")...)
 		if err != nil {
 			return err
 		}
