@@ -74,6 +74,9 @@ var applyCmd = &cobra.Command{
 		if applytrack.HasPartial() {
 			if s, err := applytrack.Load(); err == nil {
 				applytrack.PrintRecovery(s)
+			} else {
+				fmt.Printf("\n[RECOVERY] Previous apply state is unreadable: %v\n", err)
+				fmt.Println("  The previous run may have been interrupted. Inspect the stack before continuing.")
 			}
 		}
 

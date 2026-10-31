@@ -142,7 +142,7 @@ func TestHasPartialOnlyForInterruptedSessions(t *testing.T) {
 	}
 }
 
-func TestHasPartialIgnoresCorruptState(t *testing.T) {
+func TestHasPartialIsFailClosedOnCorruptState(t *testing.T) {
 	isolateState(t)
 
 	p := sessionPath()
@@ -153,8 +153,24 @@ func TestHasPartialIgnoresCorruptState(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if HasPartial() {
-		t.Error("HasPartial reported a corrupt state file as partial")
+	// An unreadable journal means a run may have died mid-write; the next run
+	// must report it instead of assuming there is nothing to recover.
+	if !HasPartial() {
+		t.Error("HasPartial did not treat a corrupt state file as partial")
+	}
+}
+
+func TestSaveLeavesNoTempFile(t *testing.T) {
+	isolateState(t)
+
+	if err := NewSession().Save(); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	if _, err := os.Stat(sessionPath() + ".tmp"); !os.IsNotExist(err) {
+		t.Errorf("temporary file left behind: %v", err)
+	}
+	if _, err := Load(); err != nil {
+		t.Errorf("saved session is not readable: %v", err)
 	}
 }
 
