@@ -100,6 +100,19 @@ func (c *Client) InspectContainer(ctx context.Context, id string) (container.Ins
 	return c.cli.ContainerInspect(ctx, id)
 }
 
+// ContainerTTY reports whether the container was created with a TTY. Docker
+// multiplexes the log stream when it is false, so callers must demultiplex.
+func (c *Client) ContainerTTY(ctx context.Context, id string) (bool, error) {
+	ins, err := c.InspectContainer(ctx, id)
+	if err != nil {
+		return false, err
+	}
+	if ins.Config == nil {
+		return false, nil
+	}
+	return ins.Config.Tty, nil
+}
+
 func (c *Client) ContainerStats(ctx context.Context, id string, stream bool) (io.ReadCloser, error) {
 	resp, err := c.cli.ContainerStats(ctx, id, stream)
 	if err != nil {
