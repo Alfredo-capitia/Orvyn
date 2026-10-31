@@ -8,6 +8,7 @@ import (
 
 	"github.com/Alfredo-capitia/Orvyn/internal/discovery"
 	"github.com/Alfredo-capitia/Orvyn/internal/docker"
+	"github.com/Alfredo-capitia/Orvyn/internal/redaction"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -52,6 +53,7 @@ type model struct {
 type tickMsg time.Time
 type refreshMsg []docker.Container
 type logsMsg []string
+type healthMsg map[string]string
 type metricsMsg struct {
 	host HostMetrics
 	cont []ContMetrics
@@ -258,6 +260,64 @@ func (m *model) startMetrics() tea.Cmd {
 	return metricsCmd()
 }
 
+// fetchHealthCmd inspects the given containers and reports their health back to
+// the UI goroutine. It must not touch model state: commands run concurrently
+// with Update, so mutating the shared cache here would race with rendering.
+func fetchHealthCmd(containers []docker.Container) tea.Cmd {
+	return func() tea.Msg {
+		dc, err := docker.New()
+		if err != nil {
+			return nil
+		}
+		defer dc.Close()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		health := make(map[string]string, len(containers))
+		for _, ct := range containers {
+			ins, err := dc.InspectContainer(ctx, ct.ID)
+			if err != nil {
+				continue
+			}
+			if ins.State.Health != nil && ins.State.Health.Status != "" {
+				health[ct.ID] = ins.State.Health.Status
+			}
+		}
+		return healthMsg(health)
+	}
+}
+
+// pruneHealthCache drops entries for containers that no longer exist.
+func (m *model) pruneHealthCache() {
+	live := make(map[string]struct{}, len(m.containers))
+	for _, ct := range m.containers {
+		live[ct.ID] = struct{}{}
+	}
+	for id := range m.healthCache {
+		if _, ok := live[id]; !ok {
+			delete(m.healthCache, id)
+		}
+	}
+}
+
+// mergeHealth applies an inspection result on the UI goroutine.
+func (m *model) mergeHealth(health map[string]string) {
+	m.pruneHealthCache()
+	for _, ct := range m.containers {
+		if status, ok := health[ct.ID]; ok {
+			m.healthCache[ct.ID] = status
+		}
+	}
+}
+
+func redactLines(lines []string) []string {
+	for i, line := range lines {
+		lines[i] = redaction.Redact(line)
+	}
+	return lines
+}
+
 func (m model) fetchLogs() tea.Cmd {
 	if len(m.containers) == 0 {
 		return nil
@@ -294,7 +354,9 @@ func (m model) fetchLogs() tea.Cmd {
 		if len(lines) > 100 {
 			lines = lines[len(lines)-100:]
 		}
-		return logsMsg(lines)
+		// Logs are best-effort redacted before they reach the screen, matching
+		// the CLI: the TUI must not be a way around the redaction path.
+		return logsMsg(redactLines(lines))
 	}
 }
 
@@ -462,24 +524,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmds...)
 	case refreshMsg:
 		m.containers = []docker.Container(msg)
-		go func(conts []docker.Container, hc map[string]string) {
-			dc, err := docker.New()
-			if err != nil {
-				return
-			}
-			defer dc.Close()
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			for _, ct := range conts {
-				ins, err := dc.InspectContainer(ctx, ct.ID)
-				if err != nil {
-					continue
-				}
-				if ins.State.Health != nil && ins.State.Health.Status != "" {
-					hc[ct.ID] = ins.State.Health.Status
-				}
-			}
-		}(m.containers, m.healthCache)
+		m.pruneHealthCache()
+		// Health inspection is asynchronous and reports back through healthMsg.
+		// The cache is only mutated on the UI goroutine, never from the command.
+		cmds = append(cmds, fetchHealthCmd(m.containers))
+		m.applyFilter()
+		if m.view == viewDetails {
+			m.buildDetails()
+		}
+		return m, tea.Batch(cmds...)
+	case healthMsg:
+		m.mergeHealth(map[string]string(msg))
 		m.applyFilter()
 		if m.view == viewDetails {
 			m.buildDetails()
