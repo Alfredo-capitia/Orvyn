@@ -111,9 +111,9 @@ orvyn restore --latest
 | `orvyn stop [service]` | Stop entire stack or a single service |
 | `orvyn restart [service]` | Restart entire stack or a single service |
 | `orvyn ps` | List only Orvyn-managed containers with service, image, status and state |
-| `orvyn down` | Stop and remove containers/network. Volumes preserved by default (`--volumes` to remove) |
-| `orvyn rm` | Alias for `down` |
-| `orvyn uninstall` | Full uninstall with confirmation. Supports `--force` and `--volumes` |
+| `orvyn down` | Stop and remove containers/network. Asks for confirmation (`--yes` skips it). Volumes preserved by default (`--volumes` to remove) |
+| `orvyn rm` | Alias for `down`, with the same confirmation and flags |
+| `orvyn uninstall` | Full uninstall with confirmation. Supports `--force` (skip the prompt) and `--volumes` |
 
 ### Observability & Debugging
 
@@ -132,8 +132,8 @@ orvyn restore --latest
 | Command | Description |
 | --- | --- |
 | `orvyn exec <service> [cmd...]` | Run a command in a managed container (defaults to `sh`) |
-| `orvyn upgrade` | `docker compose pull` + `docker compose up -d` to update images |
-| `orvyn prune` | Prune unused Docker images |
+| `orvyn upgrade` | `docker compose pull` + `docker compose up -d` to update images. Asks for confirmation (`--yes` skips it) |
+| `orvyn prune` | Prune unused Docker images for the whole daemon. Asks for confirmation (`--yes` skips it) |
 | `orvyn backup` | Archive the stack and config into `backups/backup-<timestamp>.tar.gz`. `--list` shows existing backups |
 | `orvyn restore [backup]` | Restore from a backup after confirmation. Supports `--latest` and `--yes` |
 | `orvyn completion <bash\|zsh\|fish\|powershell>` | Generate shell autocompletion |
@@ -148,18 +148,19 @@ orvyn restore --latest
 - **Host-aware limits** – Dynamically applies `mem_limit`, `cpus`, `pids_limit` based on `/proc/meminfo` and CPU count.
 - **Atomic writes & safe joins** – Uses `fsutil.AtomicWrite` and `fsutil.SafeJoin` to prevent path traversal.
 - **Redaction & audit** – Sensitive data is redacted; security-relevant actions are logged.
+- **Confirmation before destructive work** – `down`, `rm`, `prune` and `upgrade` require an explicit `y` (or `--yes`), and every attempt is recorded as `ok`/`aborted`/`failed` in `<state dir>/audit.jsonl`.
+- **Pinned project identity** – The Compose project name is derived from the stack directory and passed with `-p` on every call, so commands do not depend on the working directory and cannot target an unrelated project; `down`/`rm`/`uninstall` refuse to run when the project holds containers without `com.orvyn.managed=true`.
 - **Local-only bindings** – Prometheus/Loki are bound to `127.0.0.1`. Only expose via reverse proxy if needed.
 - **Isolated network/volumes** – Dedicated `orvyn-net` and named volumes, all labeled as Orvyn-managed.
 
 ## Development
 
 ```bash
-# Format & build
-gofmt -w ./...
+# Format, build and test
+gofmt -l ./...
 go build ./...
-
-# Run tests (if present)
-go test ./...
+go vet ./...
+go test ./... -count=1
 ```
 
 ## License
