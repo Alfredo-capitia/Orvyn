@@ -7,6 +7,7 @@ import (
 
 	"github.com/Alfredo-capitia/Orvyn/internal/config"
 	"github.com/Alfredo-capitia/Orvyn/internal/executil"
+	"github.com/Alfredo-capitia/Orvyn/internal/stack"
 	"github.com/spf13/cobra"
 )
 
@@ -36,14 +37,14 @@ var upgradeCmd = &cobra.Command{
 		defer cancel()
 
 		fmt.Println("[UPGRADE] Pulling images...")
-		out, err := executil.RunWithTimeout(ctx, 300*time.Second, "docker", "compose", "-f", cfg.StackCompose(), "pull")
+		out, err := executil.RunWithTimeout(ctx, 300*time.Second, "docker", stack.ComposeArgs(cfg, "pull")...)
 		if err != nil {
 			return err
 		}
 		fmt.Print(string(out))
 
 		fmt.Println("[UPGRADE] Starting with updated images...")
-		out, err = executil.RunWithTimeout(ctx, 300*time.Second, "docker", "compose", "-f", cfg.StackCompose(), "up", "-d")
+		out, err = executil.RunWithTimeout(ctx, 300*time.Second, "docker", stack.ComposeArgs(cfg, "up", "-d")...)
 		if err != nil {
 			return err
 		}

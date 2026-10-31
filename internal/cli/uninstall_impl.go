@@ -11,6 +11,7 @@ import (
 	"github.com/Alfredo-capitia/Orvyn/internal/config"
 	"github.com/Alfredo-capitia/Orvyn/internal/discovery"
 	"github.com/Alfredo-capitia/Orvyn/internal/executil"
+	"github.com/Alfredo-capitia/Orvyn/internal/stack"
 	"github.com/spf13/cobra"
 )
 
@@ -48,6 +49,10 @@ var uninstallCmd = &cobra.Command{
 			fmt.Printf("[UNINSTALL] Warning: could not list managed containers: %v\n", err)
 		}
 
+		if err := verifyProjectOwnership(ctx, cfg); err != nil {
+			return err
+		}
+
 		if !force {
 			fmt.Printf("This will remove Orvyn containers and network using %s\n", cfg.StackCompose())
 			if volumes {
@@ -64,7 +69,7 @@ var uninstallCmd = &cobra.Command{
 			}
 		}
 
-		argsCmd := []string{"compose", "-f", cfg.StackCompose(), "down"}
+		argsCmd := stack.ComposeArgs(cfg, "down")
 		if volumes {
 			argsCmd = append(argsCmd, "-v")
 		}
