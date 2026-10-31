@@ -50,6 +50,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Known limitations
 
-- `govulncheck` is disabled in CI: GO-2026-4887 and GO-2026-4883 in `docker/docker v28.5.2` have no upstream fix yet
+- `govulncheck` runs in CI and blocks on reachable findings. The two reachable advisories in `docker/docker v28.5.2` (`GO-2026-4887`, `GO-2026-4883`) are accepted in `.github/govulncheck-exclude.txt` because no fixed release exists; revisit by 2027-01-31. The affected `docker cp` and plugin paths are not used by Orvyn.
 - Backups are not encrypted at rest: archives are `0600` and rely on filesystem permissions
 - Restore overwrites files present in the archive; it does not delete files created after the backup
