@@ -45,10 +45,7 @@ func PrintRecoveryTo(w io.Writer, s *Session) {
 func HasPartial() bool {
 	s, err := Load()
 	if err != nil {
-		if os.IsNotExist(err) {
-			return false
-		}
-		return true
+		return !os.IsNotExist(err)
 	}
 	return s.Status == "in_progress"
 }
