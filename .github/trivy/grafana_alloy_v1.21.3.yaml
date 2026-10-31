@@ -1,0 +1,18 @@
+# Reviewed HIGH/CRITICAL vulnerabilities for grafana/alloy:v1.21.3.
+#
+# The image-scan CI job is blocking: it fails on any HIGH/CRITICAL finding
+# in this image that is not listed here. Entries are scoped by package PURL,
+# so bumping a dependency or base image brings the finding back for review
+# instead of silently inheriting the exception.
+#
+# Rules:
+# - Do not add entries to make a PR green. Fix the finding or bump the tag.
+# - Regenerate this file when the pinned tag changes and keep it accurate.
+# - When expired_at passes, Trivy reports the finding again and the job
+#   fails, forcing a re-review.
+#
+# Generated from a Trivy v0.76.1 scan of this exact image on 2026-10-31:
+# no HIGH or CRITICAL findings, so there are no accepted exceptions.
+# The tag is the first Alloy release vendoring github.com/go-jose/go-jose/v4
+# v4.1.6, which clears CVE-2026-116587 (go-jose v3 has no patched release).
+vulnerabilities: []

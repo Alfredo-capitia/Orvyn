@@ -43,6 +43,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- `grafana/alloy` bumped to `v1.21.3`: it ships `go-jose/v4 v4.1.6` and clears `CVE-2026-116587`, which kept the `image-scan` job red on the previous pinned tag
 - `logs` was registered twice, so it appeared duplicated in `orvyn --help`
 - `status` and `validate` still carried placeholder handlers from the initial skeleton
 - Built binary `orvyn` was tracked in git and is now ignored
