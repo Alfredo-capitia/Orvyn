@@ -17,7 +17,7 @@ Orvyn follows strict security principles. See the full security strategy in the 
 - **No shell injection** - Docker API used, args passed separately
 - **Audit logging** - Security-relevant events logged without secrets
 - **Backups** - Automatic backups before modifications
-- **Confirmation required** - Interactive confirmation for destructive operations
+- **Confirmation required** - Interactive confirmation for destructive operations (`--yes`/`--force` for automation), with an audit entry per attempt
 - **Read-only by default** - Discovery and plan don't modify anything
 
 ## Reporting Vulnerabilities

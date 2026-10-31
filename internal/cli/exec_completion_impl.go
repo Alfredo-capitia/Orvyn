@@ -4,10 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 
-	"github.com/Alfredo-capitia/Orvyn/internal/discovery"
 	"github.com/Alfredo-capitia/Orvyn/internal/docker"
+	"github.com/Alfredo-capitia/Orvyn/internal/executil"
 	"github.com/spf13/cobra"
 )
 
@@ -34,28 +33,14 @@ var execCmd = &cobra.Command{
 		}
 		defer dc.Close()
 
-		var cID string
-		if found, err := dc.FindContainerByNameOrService(ctx, target); err == nil && found != nil {
-			cID = found.ID
-		} else {
-			if managed, err := discovery.ManagedStack(ctx); err == nil {
-				for _, ct := range managed {
-					name := ct.Names[0]
-					if len(name) > 0 && name[0] == '/' {
-						name = name[1:]
-					}
-					svc := ct.Labels["com.orvyn.service"]
-					if name == target || svc == target || name == "orvyn-"+target {
-						cID = ct.ID
-						break
-					}
-				}
-			}
+		found, err := dc.FindContainerByNameOrService(ctx, target)
+		if err != nil {
+			return err
 		}
-
-		if cID == "" {
-			return fmt.Errorf("container/service not found: %s", target)
+		if found == nil {
+			return fmt.Errorf("managed container or service not found: %s", target)
 		}
+		cID := found.ID
 
 		id := cID
 		if len(id) > 12 {
@@ -72,11 +57,7 @@ var execCmd = &cobra.Command{
 		dargs = append(dargs, id)
 		dargs = append(dargs, cmdArgs...)
 
-		dexec := exec.CommandContext(context.Background(), "docker", dargs...)
-		dexec.Stdin = os.Stdin
-		dexec.Stdout = os.Stdout
-		dexec.Stderr = os.Stderr
-		return dexec.Run()
+		return executil.RunInteractive(ctx, "docker", dargs...)
 	},
 }
 

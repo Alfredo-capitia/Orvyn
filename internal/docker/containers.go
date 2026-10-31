@@ -57,6 +57,9 @@ func (c *Client) ContainerLogs(ctx context.Context, id string, follow bool, tail
 	return c.cli.ContainerLogs(ctx, id, opts)
 }
 
+// FindContainerByNameOrService resolves name against Orvyn-managed containers
+// only. Unmanaged containers are never returned: callers use this for
+// privileged operations such as exec and logs.
 func (c *Client) FindContainerByNameOrService(ctx context.Context, name string) (*container.Summary, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -64,23 +67,31 @@ func (c *Client) FindContainerByNameOrService(ctx context.Context, name string) 
 	if err != nil {
 		return nil, err
 	}
-	for _, cnt := range list {
+	return findManagedContainer(list, name), nil
+}
+
+// findManagedContainer is the pure matching logic behind
+// FindContainerByNameOrService. It ignores containers that do not carry the
+// com.orvyn.managed=true label.
+func findManagedContainer(list []container.Summary, name string) *container.Summary {
+	for i := range list {
+		cnt := &list[i]
+		if cnt.Labels["com.orvyn.managed"] != "true" {
+			continue
+		}
 		for _, n := range cnt.Names {
 			if n == "/"+name || n == name {
-				c2 := cnt
-				return &c2, nil
+				return cnt
 			}
 		}
 		if svc, ok := cnt.Labels["com.docker.compose.service"]; ok && svc == name {
-			c2 := cnt
-			return &c2, nil
+			return cnt
 		}
 		if len(cnt.ID) >= 12 && cnt.ID[:12] == name {
-			c2 := cnt
-			return &c2, nil
+			return cnt
 		}
 	}
-	return nil, nil
+	return nil
 }
 
 func (c *Client) InspectContainer(ctx context.Context, id string) (container.InspectResponse, error) {

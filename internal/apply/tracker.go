@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Alfredo-capitia/Orvyn/internal/config"
+	"github.com/Alfredo-capitia/Orvyn/internal/fsutil"
 )
 
 type Step struct {
@@ -49,6 +50,8 @@ func (s *Session) AddCreated(p string) {
 	s.Created = append(s.Created, p)
 }
 
+// Save writes the session atomically: a crash mid-write leaves the previous
+// session intact instead of a truncated file that the next run cannot parse.
 func (s *Session) Save() error {
 	p := sessionPath()
 	if err := os.MkdirAll(filepath.Dir(p), 0700); err != nil {
@@ -58,13 +61,7 @@ func (s *Session) Save() error {
 	if err != nil {
 		return err
 	}
-	f, err := os.OpenFile(p, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	_, err = f.Write(data)
-	return err
+	return fsutil.AtomicWrite(p, data, 0600)
 }
 
 func Load() (*Session, error) {

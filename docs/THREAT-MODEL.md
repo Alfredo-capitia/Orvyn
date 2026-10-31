@@ -33,13 +33,15 @@ does not exist. Each guard is enforced by the code that performs the operation:
 | No shell concatenation | `internal/executil` runs allowlisted executables with arguments passed separately and applies a timeout |
 | Secret redaction (best-effort) | `internal/redaction`; its coverage and limits are documented below |
 | Archive validation | `internal/backup` rejects traversal, symlinks, oversized and unknown entries, and unpacks into a temporary directory before touching destinations |
-| Confirmation before destructive work | `internal/cli` prompts in `apply`, `restore` and `uninstall`; `--yes`/`--force` opt out explicitly |
+| Confirmation before destructive work | `internal/cli` prompts in `apply`, `restore`, `down`, `rm`, `prune`, `upgrade` and `uninstall`; `--yes`/`--force` opt out explicitly |
+| Compose project ownership | `internal/stack` pins the project name and `internal/cli.verifyProjectOwnership` refuses `down`/`rm`/`uninstall` when the project contains containers without `com.orvyn.managed=true` |
 | Audit trail | `internal/audit` records metadata-only events (actor, operation, target, approval, result) |
 
-These controls do **not** include an ownership check: Orvyn does not verify file
-ownership and does not refuse to run as root. It relies on the permissions of
-the user running it, the confirmation prompts above, and the operating system's
-access control.
+These controls do **not** include a filesystem ownership check: Orvyn does not
+verify file ownership and does not refuse to run as root. The Compose project
+ownership check above covers containers, not files. File safety relies on the
+permissions of the user running Orvyn, the confirmation prompts, and the
+operating system's access control.
 
 ## Secret Redaction Limits
 

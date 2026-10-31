@@ -132,3 +132,46 @@ func TestViewShowsErrorScreen(t *testing.T) {
 type errMsgForTest struct{}
 
 func (errMsgForTest) Error() string { return "boom" }
+
+// TestHealthMsgUpdatesCacheOnUIThread ensures inspection results arrive as a
+// message and are applied by Update, instead of a goroutine mutating the shared
+// map while rows are being rendered (a data race under -race).
+func TestHealthMsgUpdatesCacheOnUIThread(t *testing.T) {
+	m := newTestModel(t)
+	m.containers = []docker.Container{{ID: "aaa"}, {ID: "bbb"}}
+	m.healthCache["stale"] = "healthy"
+
+	updated, _ := m.Update(healthMsg{"aaa": "healthy", "bbb": "unhealthy", "zzz": "healthy"})
+	got := updated.(model)
+
+	if got.healthCache["aaa"] != "healthy" {
+		t.Errorf("healthCache[aaa] = %q, want healthy", got.healthCache["aaa"])
+	}
+	if got.healthCache["bbb"] != "unhealthy" {
+		t.Errorf("healthCache[bbb] = %q, want unhealthy", got.healthCache["bbb"])
+	}
+	if _, ok := got.healthCache["zzz"]; ok {
+		t.Error("cache stored health for a container that does not exist")
+	}
+	if _, ok := got.healthCache["stale"]; ok {
+		t.Error("cache kept an entry for a container that no longer exists")
+	}
+}
+
+// TestRefreshPrunesHealthCache keeps the cache bounded by the live container
+// list, even when the refresh reports no health at all.
+func TestRefreshPrunesHealthCache(t *testing.T) {
+	m := newTestModel(t)
+	m.healthCache["gone"] = "healthy"
+	m.healthCache["live"] = "healthy"
+
+	updated, _ := m.Update(refreshMsg([]docker.Container{{ID: "live"}}))
+	got := updated.(model)
+
+	if _, ok := got.healthCache["gone"]; ok {
+		t.Error("refresh kept health for a removed container")
+	}
+	if got.healthCache["live"] != "healthy" {
+		t.Error("refresh dropped health for a live container")
+	}
+}

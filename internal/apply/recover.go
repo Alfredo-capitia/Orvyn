@@ -38,13 +38,14 @@ func PrintRecoveryTo(w io.Writer, s *Session) {
 	fmt.Fprintln(w, "\nDo NOT delete files blindly. Review above before making changes.")
 }
 
+// HasPartial reports whether a previous apply was interrupted. State that
+// exists but cannot be read or parsed is treated as partial (fail-closed): a
+// corrupted journal means an earlier run may have stopped mid-way, so the next
+// run must surface it instead of silently starting over.
 func HasPartial() bool {
 	s, err := Load()
 	if err != nil {
-		if os.IsNotExist(err) {
-			return false
-		}
-		return false
+		return !os.IsNotExist(err)
 	}
 	return s.Status == "in_progress"
 }

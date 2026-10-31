@@ -4,34 +4,45 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Alfredo-capitia/Orvyn/internal/config"
 	"github.com/Alfredo-capitia/Orvyn/internal/fsutil"
 	"github.com/Alfredo-capitia/Orvyn/internal/resources"
 )
 
-func ComposeContent() string {
+// projectPlaceholder is replaced with the pinned Compose project name. The name
+// is validated before it reaches this function, so it cannot inject YAML.
+const projectPlaceholder = "__ORVYN_PROJECT__"
+
+// ComposeContent renders the stack compose file for the given project. The
+// top-level "name:" pins the Compose project so that containers and volumes
+// are never shared with another directory that happens to use the same base
+// name.
+func ComposeContent(project string) string {
 	l := resources.Detect()
-	return fmt.Sprintf(`networks:
+	return strings.ReplaceAll(fmt.Sprintf(`name: "__ORVYN_PROJECT__"
+
+networks:
   orvyn-net:
     driver: bridge
     labels:
       com.orvyn.managed: "true"
-      com.orvyn.project: "orvyn"
+      com.orvyn.project: "__ORVYN_PROJECT__"
 
 volumes:
   prometheus_data:
     labels:
       com.orvyn.managed: "true"
-      com.orvyn.project: "orvyn"
+      com.orvyn.project: "__ORVYN_PROJECT__"
   loki_data:
     labels:
       com.orvyn.managed: "true"
-      com.orvyn.project: "orvyn"
+      com.orvyn.project: "__ORVYN_PROJECT__"
   grafana_data:
     labels:
       com.orvyn.managed: "true"
-      com.orvyn.project: "orvyn"
+      com.orvyn.project: "__ORVYN_PROJECT__"
 
 services:
   node-exporter:
@@ -54,7 +65,7 @@ services:
     pids_limit: %d
     labels:
       com.orvyn.managed: "true"
-      com.orvyn.project: "orvyn"
+      com.orvyn.project: "__ORVYN_PROJECT__"
       com.orvyn.service: "node-exporter"
 
   cadvisor:
@@ -74,7 +85,7 @@ services:
     pids_limit: %d
     labels:
       com.orvyn.managed: "true"
-      com.orvyn.project: "orvyn"
+      com.orvyn.project: "__ORVYN_PROJECT__"
       com.orvyn.service: "cadvisor"
 
   prometheus:
@@ -96,7 +107,7 @@ services:
     pids_limit: %d
     labels:
       com.orvyn.managed: "true"
-      com.orvyn.project: "orvyn"
+      com.orvyn.project: "__ORVYN_PROJECT__"
       com.orvyn.service: "prometheus"
 
   loki:
@@ -116,11 +127,11 @@ services:
     pids_limit: %d
     labels:
       com.orvyn.managed: "true"
-      com.orvyn.project: "orvyn"
+      com.orvyn.project: "__ORVYN_PROJECT__"
       com.orvyn.service: "loki"
 
   alloy:
-    image: grafana/alloy:v1.5.1
+    image: grafana/alloy:v1.21.3
     container_name: orvyn-alloy
     restart: unless-stopped
     networks:
@@ -138,9 +149,9 @@ services:
     pids_limit: %d
     labels:
       com.orvyn.managed: "true"
-      com.orvyn.project: "orvyn"
+      com.orvyn.project: "__ORVYN_PROJECT__"
       com.orvyn.service: "alloy"
-`, l.NodeExp, l.CPULimit, l.PIDsLimit, l.CAdvisor, l.CPULimit, l.PIDsLimit, l.Prometheus, l.CPULimit, l.PIDsLimit, l.Loki, l.CPULimit, l.PIDsLimit, l.Alloy, l.CPULimit, l.PIDsLimit)
+`, l.NodeExp, l.CPULimit, l.PIDsLimit, l.CAdvisor, l.CPULimit, l.PIDsLimit, l.Prometheus, l.CPULimit, l.PIDsLimit, l.Loki, l.CPULimit, l.PIDsLimit, l.Alloy, l.CPULimit, l.PIDsLimit), projectPlaceholder, project)
 }
 
 func PrometheusConfig() string {
@@ -242,6 +253,11 @@ func GenerateAll() error {
 		return err
 	}
 
+	// Resolve the project before writing: an existing compose file keeps its
+	// pinned name (or its legacy directory-derived one) so regenerating the
+	// stack never moves it to a different Compose project.
+	project := ProjectName(cfg)
+
 	dirs := []string{
 		filepath.Join(cfg.StackDir, "prometheus"),
 		filepath.Join(cfg.StackDir, "loki"),
@@ -254,7 +270,7 @@ func GenerateAll() error {
 		}
 	}
 
-	if err := fsutil.AtomicWrite(cfg.StackCompose(), []byte(ComposeContent()), 0644); err != nil {
+	if err := fsutil.AtomicWrite(cfg.StackCompose(), []byte(ComposeContent(project)), 0644); err != nil {
 		return err
 	}
 	if err := fsutil.AtomicWrite(filepath.Join(cfg.StackDir, "prometheus", "prometheus.yml"), []byte(PrometheusConfig()), 0644); err != nil {

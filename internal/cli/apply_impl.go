@@ -74,6 +74,9 @@ var applyCmd = &cobra.Command{
 		if applytrack.HasPartial() {
 			if s, err := applytrack.Load(); err == nil {
 				applytrack.PrintRecovery(s)
+			} else {
+				fmt.Printf("\n[RECOVERY] Previous apply state is unreadable: %v\n", err)
+				fmt.Println("  The previous run may have been interrupted. Inspect the stack before continuing.")
 			}
 		}
 
@@ -154,7 +157,7 @@ var applyCmd = &cobra.Command{
 		fmt.Println("\n[IMAGES/SERVICES]")
 		sess.AddStep("docker_compose_up", "in_progress", cfg.StackCompose())
 		sess.Save()
-		out, err := executil.RunWithTimeout(ctx, 300*time.Second, "docker", "compose", "-f", cfg.StackCompose(), "up", "-d")
+		out, err := executil.RunWithTimeout(ctx, 300*time.Second, "docker", stack.ComposeArgs(cfg, "up", "-d")...)
 		if err != nil {
 			sess.Steps[len(sess.Steps)-1].Err = string(out)
 			sess.AddStep("docker_compose_up", "failed", cfg.StackCompose())

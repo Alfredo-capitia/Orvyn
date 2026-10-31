@@ -1,16 +1,16 @@
 package cli
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
+	"github.com/Alfredo-capitia/Orvyn/internal/audit"
 	"github.com/Alfredo-capitia/Orvyn/internal/config"
 	"github.com/Alfredo-capitia/Orvyn/internal/discovery"
 	"github.com/Alfredo-capitia/Orvyn/internal/executil"
+	"github.com/Alfredo-capitia/Orvyn/internal/stack"
 	"github.com/spf13/cobra"
 )
 
@@ -19,6 +19,7 @@ var uninstallCmd = &cobra.Command{
 	Short: "Uninstall Orvyn stack completely",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg := config.Default()
+		logger := audit.New(cfg.StateDir + "/audit.jsonl")
 		ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 		defer cancel()
 
@@ -48,23 +49,31 @@ var uninstallCmd = &cobra.Command{
 			fmt.Printf("[UNINSTALL] Warning: could not list managed containers: %v\n", err)
 		}
 
+		if err := verifyProjectOwnership(ctx, cfg); err != nil {
+			return err
+		}
+
 		if !force {
-			fmt.Printf("This will remove Orvyn containers and network using %s\n", cfg.StackCompose())
-			if volumes {
-				fmt.Println("VOLUMES WILL BE REMOVED - ALL STACK DATA WILL BE LOST")
-			} else {
-				fmt.Println("Volumes will be preserved")
+			lines := []string{
+				"Stack: " + cfg.StackCompose(),
+				"Volumes will be preserved.",
+				"This removes the Orvyn containers and network.",
 			}
-			fmt.Print("Type 'y' to confirm: ")
-			reader := bufio.NewReader(os.Stdin)
-			text, _ := reader.ReadString('\n')
-			if strings.TrimSpace(text) != "y" {
+			if volumes {
+				lines[1] = "Volumes will be REMOVED. All stack data will be lost."
+			}
+			ok, err := confirmDestructive(os.Stdin, os.Stdout, "ORVYN UNINSTALL", lines)
+			if err != nil {
+				return err
+			}
+			if !ok {
 				fmt.Println("Aborted")
+				logger.Log(audit.Event{Operation: "uninstall", Result: "aborted", Target: cfg.StackDir})
 				return nil
 			}
 		}
 
-		argsCmd := []string{"compose", "-f", cfg.StackCompose(), "down"}
+		argsCmd := stack.ComposeArgs(cfg, "down")
 		if volumes {
 			argsCmd = append(argsCmd, "-v")
 		}
@@ -72,10 +81,11 @@ var uninstallCmd = &cobra.Command{
 		fmt.Println("[UNINSTALL] Removing stack...")
 		out, err := executil.RunWithTimeout(ctx, 180*time.Second, "docker", argsCmd...)
 		if err != nil {
-			fmt.Printf("Warning: %v\n", err)
-		} else {
-			fmt.Print(string(out))
+			logger.Log(audit.Event{Operation: "uninstall", Result: "failed", Target: cfg.StackDir})
+			return fmt.Errorf("remove stack: %w", err)
 		}
+		fmt.Print(string(out))
+		logger.Log(audit.Event{Operation: "uninstall", Approved: true, Result: "ok", Target: cfg.StackDir})
 		fmt.Println("[UNINSTALL] Done")
 		return nil
 	},
