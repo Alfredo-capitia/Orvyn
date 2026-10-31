@@ -175,16 +175,3 @@ func TestRefreshPrunesHealthCache(t *testing.T) {
 		t.Error("refresh dropped health for a live container")
 	}
 }
-
-func TestRedactLines(t *testing.T) {
-	got := redactLines([]string{"user=admin password=hunter2", "plain line"})
-	if strings.Contains(got[0], "hunter2") {
-		t.Errorf("redactLines leaked a secret: %q", got[0])
-	}
-	if !strings.Contains(got[0], "user=admin") {
-		t.Errorf("redactLines removed non-secret content: %q", got[0])
-	}
-	if got[1] != "plain line" {
-		t.Errorf("redactLines changed a plain line: %q", got[1])
-	}
-}

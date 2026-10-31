@@ -8,7 +8,7 @@ import (
 
 	"github.com/Alfredo-capitia/Orvyn/internal/discovery"
 	"github.com/Alfredo-capitia/Orvyn/internal/docker"
-	"github.com/Alfredo-capitia/Orvyn/internal/redaction"
+	"github.com/Alfredo-capitia/Orvyn/internal/logs"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -311,13 +311,6 @@ func (m *model) mergeHealth(health map[string]string) {
 	}
 }
 
-func redactLines(lines []string) []string {
-	for i, line := range lines {
-		lines[i] = redaction.Redact(line)
-	}
-	return lines
-}
-
 func (m model) fetchLogs() tea.Cmd {
 	if len(m.containers) == 0 {
 		return nil
@@ -327,10 +320,6 @@ func (m model) fetchLogs() tea.Cmd {
 		idx = 0
 	}
 	ct := m.containers[idx]
-	id := ct.ID
-	if len(id) > 12 {
-		id = id[:12]
-	}
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -339,24 +328,28 @@ func (m model) fetchLogs() tea.Cmd {
 			return errMsg(err)
 		}
 		defer dc.Close()
-		rc, err := dc.ContainerLogs(ctx, id, false, "80", false)
+
+		tty, err := dc.ContainerTTY(ctx, ct.ID)
+		if err != nil {
+			return errMsg(err)
+		}
+		rc, err := dc.ContainerLogs(ctx, ct.ID, false, "80", false)
 		if err != nil {
 			return errMsg(err)
 		}
 		defer rc.Close()
-		buf := make([]byte, 64*1024)
-		n, _ := rc.Read(buf)
-		if n == 0 {
+
+		// Collect demultiplexes the Docker stream and redacts every line with
+		// the same code path as the CLI, so the dashboard cannot show frame
+		// headers or secrets the `orvyn logs` command would hide.
+		lines, err := logs.Collect(rc, tty, 256*1024, 100)
+		if err != nil {
+			return errMsg(err)
+		}
+		if len(lines) == 0 {
 			return logsMsg([]string{"<no logs>"})
 		}
-		raw := string(buf[:n])
-		lines := strings.Split(strings.ReplaceAll(raw, "\r\n", "\n"), "\n")
-		if len(lines) > 100 {
-			lines = lines[len(lines)-100:]
-		}
-		// Logs are best-effort redacted before they reach the screen, matching
-		// the CLI: the TUI must not be a way around the redaction path.
-		return logsMsg(redactLines(lines))
+		return logsMsg(lines)
 	}
 }
 
