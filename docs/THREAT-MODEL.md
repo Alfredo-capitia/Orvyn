@@ -26,8 +26,8 @@ does not exist. Each guard is enforced by the code that performs the operation:
 
 | Control | Implementation |
 |---|---|
-| Path traversal and symlink containment | `internal/fsutil.SafeJoin` resolves symlinks and rejects paths outside the base |
-| Atomic file replacement | `internal/fsutil.AtomicWrite` writes a sibling temporary file and renames it into place |
+| Path traversal and symlink containment | `internal/backup` validates each entry (`safeRel`, `withinRoot`) and rejects symlinked destination components (`ensureNoSymlinks`) before writing; `internal/fsutil.SafeJoin` is a containment helper for new call sites |
+| Atomic file replacement | `internal/fsutil.AtomicWrite` writes a uniquely named sibling temporary file, fsyncs it, renames it into place and fsyncs the directory |
 | Directory and file permissions | `internal/config.EnsureDirs` (0750, state dir 0700), `internal/audit` (0700 dir, 0600 log), callers of `AtomicWrite` |
 | Privilege-aware paths | `internal/config.Default` selects `/opt/orvyn`, `/etc/orvyn` and `/var/lib/orvyn` when the effective UID is 0, otherwise user-local paths |
 | No shell concatenation | `internal/executil` runs allowlisted executables with arguments passed separately and applies a timeout |
