@@ -277,4 +277,4 @@ Alloy CVE.
 | 8 | `docs/engineering-audit` | #65 (merged) | Audit report |
 | 9 | `feat/instance-lock-coverage` | #72 | Lock every mutating command; correct the dashboard help |
 | 10 | `test/discovery-resources-cmd` | #74 | Discovery, resource detection and binary smoke tests |
-| 11 | `chore/remove-unused-state` | #75 | Remove the unused `internal/state` package |
+| 11 | `chore/remove-unused-state` | #76 | Remove the unused `internal/state` package |
