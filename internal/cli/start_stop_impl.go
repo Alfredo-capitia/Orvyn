@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Alfredo-capitia/Orvyn/internal/audit"
 	"github.com/Alfredo-capitia/Orvyn/internal/config"
 	"github.com/Alfredo-capitia/Orvyn/internal/executil"
 	"github.com/Alfredo-capitia/Orvyn/internal/stack"
@@ -18,6 +19,13 @@ var startCmd = &cobra.Command{
 		cfg := config.Default()
 		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 		defer cancel()
+
+		lock, err := acquireInstanceLock(cfg)
+		if err != nil {
+			audit.New(cfg.StateDir + "/audit.jsonl").Log(audit.Event{Operation: "start", Result: "locked"})
+			return err
+		}
+		defer lock.Release()
 
 		if len(args) == 0 {
 			fmt.Println("[START] Starting Orvyn stack...")
@@ -50,6 +58,13 @@ var stopCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 		defer cancel()
 
+		lock, err := acquireInstanceLock(cfg)
+		if err != nil {
+			audit.New(cfg.StateDir + "/audit.jsonl").Log(audit.Event{Operation: "stop", Result: "locked"})
+			return err
+		}
+		defer lock.Release()
+
 		if len(args) == 0 {
 			fmt.Println("[STOP] Stopping Orvyn stack...")
 			out, err := executil.RunWithTimeout(ctx, 120*time.Second, "docker", stack.ComposeArgs(cfg, "stop")...)
@@ -80,6 +95,13 @@ var restartCmd = &cobra.Command{
 		cfg := config.Default()
 		ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 		defer cancel()
+
+		lock, err := acquireInstanceLock(cfg)
+		if err != nil {
+			audit.New(cfg.StateDir + "/audit.jsonl").Log(audit.Event{Operation: "restart", Result: "locked"})
+			return err
+		}
+		defer lock.Release()
 
 		if len(args) == 0 {
 			fmt.Println("[RESTART] Restarting Orvyn stack...")

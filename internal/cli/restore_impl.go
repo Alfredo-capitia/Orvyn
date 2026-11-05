@@ -31,6 +31,13 @@ archive are overwritten, so a confirmation is required unless --yes is given.`,
 		latest, _ := cmd.Flags().GetBool("latest")
 		assumeYes, _ := cmd.Flags().GetBool("yes")
 
+		lock, err := acquireInstanceLock(cfg)
+		if err != nil {
+			audit.New(cfg.StateDir + "/audit.jsonl").Log(audit.Event{Operation: "restore", Result: "locked"})
+			return err
+		}
+		defer lock.Release()
+
 		archive, err := selectBackup(cfg, args, latest)
 		if err != nil {
 			return err

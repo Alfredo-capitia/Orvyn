@@ -9,10 +9,10 @@
 - [x] Compilar com sucesso
 
 ## Fase 1: Core de Segurança [COMPLETED]
-- [x] internal/fsutil/ - SafeJoin, path traversal protection
+- [x] internal/fsutil/ - escrita atómica durável; path traversal protection no restore (safeRel/withinRoot/ensureNoSymlinks)
 - [x] internal/redaction/ - Redação de segredos
 - [x] internal/audit/ - Logging de eventos sem segredos
-- [x] internal/state/ - Gestão de estado com permissões restritas
+- [x] internal/state/ - removido em OPEN-5; os paths de estado vêm de internal/config
 - [x] internal/config/ - Configuração com paths seguros
 - [x] Testes unitários para fsutil, redaction, audit
 
@@ -99,7 +99,7 @@
 - [x] internal/tui - Bubble Tea / Lip Gloss / Bubbles
 - [x] Views: Overview, Logs, Metrics, Details, Help
 - [x] Filtro incremental (`/`)
-- [x] Ações rápidas: start / stop / restart com confirmação
+- [x] Dashboard read-only; ações de containers continuam via CLI
 - [x] Métricas de host (`/proc`) e de containers (Docker stats)
 - [x] Health cache via `docker inspect`
 - [x] Navegação por teclado estilo k9s

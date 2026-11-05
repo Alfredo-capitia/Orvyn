@@ -649,8 +649,6 @@ func (m model) View() string {
   d          View details for selected service
   l          View logs for selected service
   m          View metrics (host + containers)
-  s          Start/Stop selected service (toggle)
-  Shift+R    Restart selected service
   r          Refresh
   ?          Toggle help
   o          Back to overview

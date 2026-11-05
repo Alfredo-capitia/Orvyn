@@ -21,7 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Interactive TUI dashboard (`orvyn dashboard`) with Overview, Logs, Metrics, Details and Help views
 - Host metrics from `/proc` and per-container stats from the Docker API
 - Health inspection via `docker inspect` with a cache to avoid repeated calls
-- Incremental filter and quick start/stop/restart actions with confirmation
+- Incremental container filter in the dashboard
 
 ### Security
 
@@ -33,12 +33,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Restore is fail-closed: the archive is validated and unpacked into a temporary directory before any file is moved into place; absolute paths, `..`, symlink entries, unknown top-level roots and entries above the size limit are rejected, and the decompressed stream is bounded
 - Restore never follows a symlink below the destination root, and cross-filesystem copies land in a sibling temporary file that is renamed into place
 - Backups are written `0600` and restore never applies group/other-writable or setuid bits from an archive
+- Single-writer instance lock (`flock` on `<state>/orvyn.lock`) for every command that mutates containers or files (`apply`, `up`, `down`, `prune`, `upgrade`, `restore`, `rm`, `uninstall`, `start`, `stop`, `restart`); a second run fails with the holder's PID and is audited as `result=locked`
 
 ### Changed
 
 - Stack images pinned to explicit versions (no `:latest`)
 - Generated config files written with `0644` so containers can read them
 - Paths are user-local by default, system-wide only when running as root
+- Removed the unused `internal/state` package; runtime state paths come from `internal/config` (UID-aware)
+- Removed the unused `fsutil.SafeJoin` helper; restore keeps its stricter `safeRel`/`withinRoot`/`ensureNoSymlinks` checks
 - CI pinned to Go `1.27.3` with SHA-pinned actions, `concurrency` and job timeouts
 
 ### Fixed
@@ -48,6 +51,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `logs` was registered twice, so it appeared duplicated in `orvyn --help`
 - `status` and `validate` still carried placeholder handlers from the initial skeleton
 - Built binary `orvyn` was tracked in git and is now ignored
+- Dashboard help no longer advertises start/stop/restart keys that were never wired; the dashboard is read-only
 
 ### Known limitations
 

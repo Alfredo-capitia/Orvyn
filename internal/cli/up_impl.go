@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/Alfredo-capitia/Orvyn/internal/audit"
 	"github.com/Alfredo-capitia/Orvyn/internal/config"
 	"github.com/Alfredo-capitia/Orvyn/internal/discovery"
 	"github.com/Alfredo-capitia/Orvyn/internal/docker"
@@ -21,6 +22,13 @@ var upCmd = &cobra.Command{
 		cfg := config.Default()
 		ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 		defer cancel()
+
+		lock, err := acquireInstanceLock(cfg)
+		if err != nil {
+			audit.New(cfg.StateDir + "/audit.jsonl").Log(audit.Event{Operation: "up", Result: "locked"})
+			return err
+		}
+		defer lock.Release()
 
 		// Ensure stack files exist
 		if _, err := os.Stat(cfg.StackCompose()); os.IsNotExist(err) {

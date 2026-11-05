@@ -26,7 +26,7 @@ does not exist. Each guard is enforced by the code that performs the operation:
 
 | Control | Implementation |
 |---|---|
-| Path traversal and symlink containment | `internal/backup` validates each entry (`safeRel`, `withinRoot`) and rejects symlinked destination components (`ensureNoSymlinks`) before writing; `internal/fsutil.SafeJoin` is a containment helper for new call sites |
+| Path traversal and symlink containment | `internal/backup` validates each entry (`safeRel`, `withinRoot`) and rejects symlinked destination components (`ensureNoSymlinks`) before writing |
 | Atomic file replacement | `internal/fsutil.AtomicWrite` writes a uniquely named sibling temporary file, fsyncs it, renames it into place and fsyncs the directory |
 | Directory and file permissions | `internal/config.EnsureDirs` (0750, state dir 0700), `internal/audit` (0700 dir, 0600 log), callers of `AtomicWrite` |
 | Privilege-aware paths | `internal/config.Default` selects `/opt/orvyn`, `/etc/orvyn` and `/var/lib/orvyn` when the effective UID is 0, otherwise user-local paths |
@@ -36,7 +36,7 @@ does not exist. Each guard is enforced by the code that performs the operation:
 | Confirmation before destructive work | `internal/cli` prompts in `apply`, `restore`, `down`, `rm`, `prune`, `upgrade` and `uninstall`; `--yes`/`--force` opt out explicitly |
 | Compose project ownership | `internal/stack` pins the project name and `internal/cli.verifyProjectOwnership` refuses `down`/`rm`/`uninstall` when the project contains containers without `com.orvyn.managed=true` |
 | Audit trail | `internal/audit` records metadata-only events (actor, operation, target, approval, result) |
-| Concurrent stack mutation | `internal/instancelock` holds an exclusive non-blocking `flock` on `<state>/orvyn.lock` for `apply`, `down`, `rm` and `uninstall`; the kernel releases it when the process exits |
+| Concurrent stack mutation | `internal/instancelock` holds an exclusive non-blocking `flock` on `<state>/orvyn.lock` for every command that mutates containers or files (`apply`, `up`, `down`, `prune`, `upgrade`, `restore`, `rm`, `uninstall`, `start`, `stop`, `restart`); the kernel releases it when the process exits. The dashboard is read-only |
 
 These controls do **not** include a filesystem ownership check: Orvyn does not
 verify file ownership and does not refuse to run as root. The Compose project
