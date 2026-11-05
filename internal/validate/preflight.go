@@ -24,11 +24,34 @@ type Report struct {
 	OK     bool
 }
 
+// dockerPinger is the subset of the Docker client used by Preflight. The
+// indirection exists so the checks can be exercised without a daemon.
+type dockerPinger interface {
+	Ping(ctx context.Context) error
+	Close() error
+}
+
+// The probes are variables so tests can simulate a missing daemon, an
+// unreachable registry or a read-only socket without touching the host.
+var (
+	newDockerClient = func() (dockerPinger, error) {
+		cli, err := docker.New()
+		if err != nil {
+			return nil, err
+		}
+		return cli, nil
+	}
+	runCommand   = executil.RunWithTimeout
+	dialRegistry = net.DialTimeout
+	statPath     = os.Stat
+	accessPath   = syscall.Access
+)
+
 func Preflight(ctx context.Context) *Report {
 	r := &Report{OK: true}
 
 	// Docker daemon
-	cli, err := docker.New()
+	cli, err := newDockerClient()
 	if err != nil {
 		r.Checks = append(r.Checks, Check{Name: "docker_daemon", Status: "FAIL", Msg: fmt.Sprintf("cannot create docker client: %v", err)})
 		r.OK = false
@@ -46,7 +69,7 @@ func Preflight(ctx context.Context) *Report {
 
 	// Docker compose
 	cctx, ccancel := context.WithTimeout(ctx, 3*time.Second)
-	out, err := executil.RunWithTimeout(cctx, 3*time.Second, "docker", "compose", "version")
+	out, err := runCommand(cctx, 3*time.Second, "docker", "compose", "version")
 	ccancel()
 	if err != nil {
 		r.Checks = append(r.Checks, Check{Name: "docker_compose", Status: "FAIL", Msg: "docker compose not available"})
@@ -56,9 +79,9 @@ func Preflight(ctx context.Context) *Report {
 	}
 
 	// Docker socket perms
-	if _, err := os.Stat("/var/run/docker.sock"); err == nil {
+	if _, err := statPath("/var/run/docker.sock"); err == nil {
 		if runtime.GOOS == "linux" {
-			if err := syscall.Access("/var/run/docker.sock", syscall.O_RDWR); err != nil {
+			if err := accessPath("/var/run/docker.sock", syscall.O_RDWR); err != nil {
 				r.Checks = append(r.Checks, Check{Name: "docker_socket", Status: "WARN", Msg: "no write access to /var/run/docker.sock (may need group docker or root)"})
 			} else {
 				r.Checks = append(r.Checks, Check{Name: "docker_socket", Status: "OK", Msg: "socket accessible"})
@@ -69,7 +92,7 @@ func Preflight(ctx context.Context) *Report {
 	}
 
 	// Registry reachability (best-effort)
-	conn, err := net.DialTimeout("tcp", "registry-1.docker.io:443", 3*time.Second)
+	conn, err := dialRegistry("tcp", "registry-1.docker.io:443", 3*time.Second)
 	if err != nil {
 		r.Checks = append(r.Checks, Check{Name: "registry", Status: "WARN", Msg: "cannot reach registry-1.docker.io:443 (best-effort; cached images may still work)"})
 	} else {
@@ -78,7 +101,7 @@ func Preflight(ctx context.Context) *Report {
 	}
 
 	// Disk space (best-effort)
-	if st, err := os.Stat("/home"); err == nil {
+	if st, err := statPath("/home"); err == nil {
 		_ = st
 		r.Checks = append(r.Checks, Check{Name: "disk", Status: "OK", Msg: "disk check ok (best-effort)"})
 	}
