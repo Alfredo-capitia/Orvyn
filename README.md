@@ -146,7 +146,7 @@ orvyn restore --latest
 - **Apply session tracking** – Tracks partial failures with recovery guidance.
 - **Idempotency** – Detects existing managed containers and reconciles safely.
 - **Host-aware limits** – Dynamically applies `mem_limit`, `cpus`, `pids_limit` based on `/proc/meminfo` and CPU count.
-- **Atomic writes & safe joins** – Uses `fsutil.AtomicWrite` and `fsutil.SafeJoin` to prevent path traversal.
+- **Atomic writes** – `fsutil.AtomicWrite` writes a uniquely named temporary file, fsyncs the file and the directory, then renames it into place. Restore validates every archive entry and rejects absolute paths, `..`, symlinks and unknown roots before writing.
 - **Redaction & audit** – Sensitive data is redacted; security-relevant actions are logged.
 - **Confirmation before destructive work** – `down`, `rm`, `prune` and `upgrade` require an explicit `y` (or `--yes`), and every attempt is recorded as `ok`/`aborted`/`failed` in `<state dir>/audit.jsonl`.
 - **Pinned project identity** – The Compose project name is derived from the stack directory and passed with `-p` on every call, so commands do not depend on the working directory and cannot target an unrelated project; `down`/`rm`/`uninstall` refuse to run when the project holds containers without `com.orvyn.managed=true`.

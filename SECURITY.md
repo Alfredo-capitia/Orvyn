@@ -13,7 +13,7 @@ Orvyn follows strict security principles. See the full security strategy in the 
 ## Security Features
 
 - **Secret redaction** - Best-effort, regex-based masking of some token, key and password patterns in streamed logs. It is not a guarantee; see [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md#secret-redaction-limits) for what is and is not covered
-- **Path traversal protection** - All file paths validated with `fsutil.SafeJoin`
+- **Path traversal protection** - Restore validates every archive entry and rejects absolute paths, `..`, symlink escapes and unknown roots before writing. `fsutil.SafeJoin` offers the same containment check for new call sites; it is not on the restore path, which uses stricter entry-by-entry checks
 - **No shell injection** - Docker API used, args passed separately
 - **Audit logging** - Security-relevant events logged without secrets
 - **Backups** - Automatic backups before modifications
@@ -28,7 +28,7 @@ If you discover a security vulnerability, please report it responsibly.
 
 - [ ] No hardcoded secrets
 - [ ] All user input validated
-- [ ] File operations use SafeJoin
+- [ ] File operations stay under a validated root (SafeJoin or equivalent checks)
 - [ ] Logs go through redaction
 - [ ] Errors don't leak secrets
 - [ ] Tests include security cases
