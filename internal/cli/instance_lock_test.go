@@ -180,6 +180,13 @@ func TestMutatingCommandsRefuseToRunWhileLocked(t *testing.T) {
 		{"down", downCmd, "yes", "down"},
 		{"rm", rmCmd, "yes", "rm"},
 		{"uninstall", uninstallCmd, "force", "uninstall"},
+		{"prune", pruneCmd, "yes", "prune"},
+		{"upgrade", upgradeCmd, "yes", "upgrade"},
+		{"restore", restoreCmd, "yes", "restore"},
+		{"start", startCmd, "", "start"},
+		{"stop", stopCmd, "", "stop"},
+		{"restart", restartCmd, "", "restart"},
+		{"up", upCmd, "", "up"},
 	}
 
 	for _, tc := range tests {
@@ -251,5 +258,43 @@ func TestLockIsReleasedAfterASuccessfulCommand(t *testing.T) {
 	}
 	if err := lock.Release(); err != nil {
 		t.Fatalf("release: %v", err)
+	}
+}
+
+// TestLockIsReleasedAfterEveryMutatingCommand runs each command that now takes
+// the lock and proves the lock is free afterwards, whatever the command result
+// was. It complements TestMutatingCommandsRefuseToRunWhileLocked.
+func TestLockIsReleasedAfterEveryMutatingCommand(t *testing.T) {
+	tests := []struct {
+		name string
+		cmd  *cobra.Command
+		args []string
+	}{
+		{"prune", pruneCmd, []string{"yes", "true"}},
+		{"upgrade", upgradeCmd, []string{"yes", "true"}},
+		{"restore", restoreCmd, []string{"yes", "true"}},
+		{"start", startCmd, nil},
+		{"stop", stopCmd, nil},
+		{"restart", restartCmd, nil},
+		{"up", upCmd, nil},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			newLockTestEnv(t)
+
+			// The command may fail for environment reasons (for example restore
+			// without a backup). What matters here is that it releases the lock
+			// on every return path.
+			_, _ = lockTestRun(t, tc.cmd, "y\n", tc.args...)
+
+			lock, err := instancelock.Acquire(instancelock.Path(config.Default().StateDir))
+			if err != nil {
+				t.Fatalf("%s left the instance lock held: %v", tc.name, err)
+			}
+			if err := lock.Release(); err != nil {
+				t.Fatalf("%s: release: %v", tc.name, err)
+			}
+		})
 	}
 }

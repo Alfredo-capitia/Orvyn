@@ -16,7 +16,7 @@ that has not been verified.
 | Total statement coverage | **46.9% → 64.9%** (baseline `0d5b28b`, verified on `dev` at `ff9f968`) |
 | Packages with new or expanded tests | `docker`, `executil`, `config`, `validate`, `cli`, `tui`, `fsutil`, `instancelock` |
 | Production defects fixed | 6 (two TUI state bugs, one crash, non-durable atomic writes, false security documentation, timeout not killing descendants) |
-| Operational control added | Single-writer instance lock for `apply`, `down`, `rm`, `uninstall` |
+| Operational control added | Single-writer instance lock for every command that mutates containers or files |
 | External finding | `CVE-2026-109518` in `grafana/alloy:v1.21.3` — **resolved by #66** (distroless image); `image-scan` is green |
 | Follow-up (2026-11-05) | `dev-protection` ruleset created; `main-protection` now requires all four security checks |
 | CI/CD finding | **Fixed:** `dev` had no protection and `main` required only `build-and-test`; both now require the four security checks |
@@ -53,7 +53,7 @@ state and not an estimate.
 | `internal/executil` | 33.3% | 92.0% ¹ | 2 / #59, 7 / #64 |
 | `internal/config` | 42.9% | 85.7% | 2 / #59 |
 | `internal/validate` | 0.0% | 87.8% | 2 / #59 |
-| `internal/cli` | 14.3% | 37.0% ² | 3 / #60, 6 / #63 |
+| `internal/cli` | 14.3% | 44.5% ² | 3 / #60, 6 / #63, 9 / #72 |
 | `internal/tui` | 35.9% | 70.9% | 4 / #61 |
 | `internal/fsutil` | 45.0% | 54.0% | 5 / #62 |
 | `internal/instancelock` | — (new) | 81.4% | 6 / #63 |
@@ -76,7 +76,8 @@ process-group code. Two new branches (nil process, already-dead group) are not
 exercised, so the combined package is 92.0%.
 
 ² PR #60 measured `internal/cli` at 35.3% on its own branch; the combined value
-including the instance-lock tests is 37.0%.
+including the instance-lock tests was 37.0% before PR #72 added coverage for the
+additional mutating commands (44.5%).
 
 ## 4. Problems found and fixed
 
@@ -99,7 +100,8 @@ including the instance-lock tests is 37.0%.
 | AUDIT-8 | `AtomicWrite` used a fixed `<path>.tmp` and did not `fsync`. | A crash could leave the apply journal or a generated config truncated; concurrent writers shared a temporary name. | Unique `os.CreateTemp` sibling, `chmod`, write, `fsync`, rename, directory `fsync`, cleanup on failure. |
 | AUDIT-9 | Documentation claimed every path goes through `SafeJoin`. | Security documentation overstated an enforced control. `SafeJoin` has no production caller; restore uses stricter entry-by-entry checks. | README, `SECURITY.md`, contributor checklist, risk register and threat model now describe the actual controls. |
 | AUDIT-10 | `RunWithTimeout` killed only the direct child. | A timed-out command could keep blocking until descendants closed the output pipe. Measured: 5.00s for a 100ms timeout with a background `sleep 5`. | Child starts in its own process group; cancellation sends `SIGKILL` to `-pid`; `WaitDelay` bounds the pipe drain. Measured: 0.10s. |
-| AUDIT-11 | Nothing serialised mutating commands. | A concurrent `apply` and `down` could interleave backup, compose rewrite and container removal. | `internal/instancelock` takes an exclusive, non-blocking `flock` on `<state>/orvyn.lock` for `apply`, `down`, `rm` and `uninstall`; refused runs are audited as `result=locked`. |
+| AUDIT-11 | Nothing serialised mutating commands. | A concurrent `apply` and `down` could interleave backup, compose rewrite and container removal. | `internal/instancelock` takes an exclusive, non-blocking `flock` on `<state>/orvyn.lock`; refused runs are audited as `result=locked`. PR #72 extends it to every mutating command. |
+| AUDIT-12 | The dashboard help listed `s` and `Shift+R` container actions that have no handler, and the changelog advertised them. | Operators expect start/stop/restart from the dashboard and nothing happens; the changelog overstated a shipped feature. | Removed the two help lines and corrected the changelog. The dashboard is read-only, so it needs no instance lock. |
 
 Each fix has a regression test in the corresponding PR. The process-group fix
 was verified both ways: the new test fails in 5.00s with the old behaviour and
@@ -115,7 +117,7 @@ passes in 0.10s with the fix.
 | OPEN-4 | `internal/discovery`, `internal/resources`, `internal/state` and `cmd/orvyn` are at 0% coverage. | Out of scope for the phases completed so far. | Cover discovery filters and resource detection next; add a command smoke test for `cmd/orvyn`. |
 | OPEN-5 | `internal/state` has no production caller and hardcodes `/var/lib/orvyn`. | Removing or repurposing it is an architectural decision, not a test fix. | Delete it, or make it use `config.Default()` and wire it to the commands that need persisted state. |
 | OPEN-6 | `SafeJoin` has no production caller. | The restore path already uses stricter checks (`safeRel`, `withinRoot`, `ensureNoSymlinks`). | Either use `SafeJoin` at a real call site or remove it; do not keep it as documentation-only security surface. |
-| OPEN-7 | The instance lock covers `apply`, `down`, `rm` and `uninstall`, but not `prune`, `upgrade`, `restore`, `start`, `stop`, `restart` or TUI actions. | The phase scope was the four stack-mutating commands. | Extend the same lock to every command that mutates containers or files, including TUI actions. |
+| OPEN-7 | **Resolved.** The instance lock covered only `apply`, `down`, `rm` and `uninstall`. | That was the scope of the first phase. | Done: every command that mutates containers or files now takes it (`apply`, `up`, `down`, `prune`, `upgrade`, `restore`, `rm`, `uninstall`, `start`, `stop`, `restart`). The dashboard is read-only, so it needs no lock. |
 | OPEN-8 | `executil` process-group code has two unexercised branches (nil process, already-dead group). | Hard to trigger deterministically without racing the scheduler. | Accept as low risk, or inject a `kill` seam if these branches become security-relevant. |
 | OPEN-9 | Two reachable advisories are accepted in `.github/govulncheck-exclude.txt`: `GO-2026-4887` and `GO-2026-4883` in `github.com/docker/docker v28.5.2+incompatible`. Dependabot also reports four open alerts on the same module (two high, two medium), every one with no patched version. | All four are marked "Fixed in: N/A" upstream; the newest published module is pinned. The two reachable ones are the only ones govulncheck has to allowlist. | Revisit by 2027-01-31 or when a fixed release ships. |
 | OPEN-10 | Local `-race` and `govulncheck` could not run. | `-race` requires cgo and `gcc` is not installed; `govulncheck` is not installed and the vulnerability database was unreachable from this host. | Use CI evidence until the local toolchain is provisioned; do not install tooling without approval. |
@@ -198,7 +200,7 @@ Findings:
 |---|---|---|
 | Alloy base-image CVE reaches production images | High | Resolved by #66 (distroless); future findings block `image-scan` |
 | A security job can regress without blocking `dev` or `main` | High | Mitigated: all four checks are required on `dev` and `main` |
-| Two mutating commands outside the lock interleave | Medium | Open; OPEN-7 |
+| Two mutating commands outside the lock interleave | Medium | Resolved: every mutating command takes the lock (OPEN-7) |
 | Uncovered discovery/resource/state code hides regressions | Medium | Open; OPEN-4 |
 | `internal/state` writes to a hardcoded root-owned path if ever wired | Medium | Open; OPEN-5 |
 | Accepted Docker advisories remain reachable | Medium | Documented until 2027-01-31; OPEN-9 |
@@ -215,8 +217,8 @@ Priority order:
 2. **Protect `dev` and strengthen `main` (OPEN-2/OPEN-3).** Done: both rulesets
    now require `build-and-test`, `govulncheck`, `image-scan` and `codeql`.
    Approvals remain at 0 because the project has a single maintainer.
-3. **Extend the instance lock (OPEN-7)** to every mutating command and to TUI
-   actions.
+3. **Extend the instance lock (OPEN-7).** Done: every mutating command now
+   takes it; the dashboard is read-only.
 4. **Cover the remaining 0% packages (OPEN-4)**, starting with discovery and
    resource detection, then a `cmd/orvyn` smoke test.
 5. **Remove or wire `internal/state` (OPEN-5)** so the repository has no unused
@@ -268,4 +270,5 @@ Alloy CVE.
 | 5 | `fix/fsutil-durability` | #62 | Durable atomic writes + docs |
 | 6 | `feat/instance-lock` | #63 | Single-writer lock |
 | 7 | `fix/executil-process-group` | #64 | Timeout kills the process group |
-| 8 | `docs/engineering-audit` | this document | Audit report |
+| 8 | `docs/engineering-audit` | #65 (merged) | Audit report |
+| 9 | `feat/instance-lock-coverage` | #72 | Lock every mutating command; correct the dashboard help |
