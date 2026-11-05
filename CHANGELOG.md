@@ -40,6 +40,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Stack images pinned to explicit versions (no `:latest`)
 - Generated config files written with `0644` so containers can read them
 - Paths are user-local by default, system-wide only when running as root
+- Removed the unused `internal/state` package; runtime state paths come from `internal/config` (UID-aware)
 - CI pinned to Go `1.27.3` with SHA-pinned actions, `concurrency` and job timeouts
 
 ### Fixed
