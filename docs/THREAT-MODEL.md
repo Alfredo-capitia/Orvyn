@@ -36,6 +36,7 @@ does not exist. Each guard is enforced by the code that performs the operation:
 | Confirmation before destructive work | `internal/cli` prompts in `apply`, `restore`, `down`, `rm`, `prune`, `upgrade` and `uninstall`; `--yes`/`--force` opt out explicitly |
 | Compose project ownership | `internal/stack` pins the project name and `internal/cli.verifyProjectOwnership` refuses `down`/`rm`/`uninstall` when the project contains containers without `com.orvyn.managed=true` |
 | Audit trail | `internal/audit` records metadata-only events (actor, operation, target, approval, result) |
+| Concurrent stack mutation | `internal/instancelock` holds an exclusive non-blocking `flock` on `<state>/orvyn.lock` for `apply`, `down`, `rm` and `uninstall`; the kernel releases it when the process exits |
 
 These controls do **not** include a filesystem ownership check: Orvyn does not
 verify file ownership and does not refuse to run as root. The Compose project
