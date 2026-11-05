@@ -131,7 +131,7 @@ services:
       com.orvyn.service: "loki"
 
   alloy:
-    image: grafana/alloy:v1.21.3
+    image: grafana/alloy:v1.21.3-distroless
     container_name: orvyn-alloy
     restart: unless-stopped
     networks:
