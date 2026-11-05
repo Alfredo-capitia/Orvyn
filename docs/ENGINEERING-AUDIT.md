@@ -14,7 +14,7 @@ that has not been verified.
 
 | Item | Result |
 |---|---|
-| Total statement coverage | **46.9% → 70.5%** (baseline `0d5b28b`, verified on `dev` at `d31228a` after #74) |
+| Total statement coverage | **46.9% → 71.1%** (baseline `0d5b28b`, verified on `dev` at `d31228a` after #74) |
 | Packages with new or expanded tests | `docker`, `executil`, `config`, `validate`, `cli`, `tui`, `fsutil`, `instancelock`, `discovery`, `resources`, `cmd/orvyn` |
 | Production defects fixed | 6 (two TUI state bugs, one crash, non-durable atomic writes, false security documentation, timeout not killing descendants) |
 | Operational control added | Single-writer instance lock for every command that mutates containers or files |
@@ -44,10 +44,11 @@ disabled, and no Trivy baseline was edited to hide the Alloy CVE.
 Baseline measured on `0d5b28b` with `go test ./... -cover`. The total was
 re-measured on `dev` at `d31228a` (after #74) with
 `go test ./... -count=1 -coverprofile` and `go tool cover -func`: **69.5%**.
-Removing the unused `internal/state` package then raised the total to
-**70.5%**, because its statements left the denominator. The earlier merged
-state (`ff9f968`, after #58–#66) reported 64.9%. The per-package table below
-is the state after #74 and the `internal/state` removal, not an estimate.
+Removing the unused `internal/state` package and the unused `fsutil.SafeJoin`
+helper then raised the total to **71.1%**, because their statements left the
+denominator. The earlier merged state (`ff9f968`, after #58–#66) reported
+64.9%. The per-package table below is the state after #74 and those removals,
+not an estimate.
 
 | Package | Before | After | Phase / PR |
 |---|---:|---:|---|
@@ -57,7 +58,7 @@ is the state after #74 and the `internal/state` removal, not an estimate.
 | `internal/validate` | 0.0% | 87.8% | 2 / #59 |
 | `internal/cli` | 14.3% | 44.5% ² | 3 / #60, 6 / #63, 9 / #72 |
 | `internal/tui` | 35.9% | 70.9% | 4 / #61 |
-| `internal/fsutil` | 45.0% | 54.0% | 5 / #62 |
+| `internal/fsutil` | 45.0% | 66.7% ³ | 5 / #62, 12 / #77 |
 | `internal/instancelock` | — (new) | 81.4% | 6 / #63 |
 | `internal/apply` | 93.3% | 93.3% | unchanged |
 | `internal/audit` | 80.0% | 80.0% | unchanged |
@@ -70,7 +71,7 @@ is the state after #74 and the `internal/state` removal, not an estimate.
 | `internal/resources` | 0.0% | 100.0% | 10 / #74 |
 | `cmd/orvyn` | 0.0% | 80.0% | 10 / #74 |
 | `pkg/types` | no tests | no tests | — |
-| **Total** | **46.9%** | **70.5%** | |
+| **Total** | **46.9%** | **71.1%** | |
 
 ¹ PR #59 measured `internal/executil` at 100.0% before PR #64 added the
 process-group code. Two new branches (nil process, already-dead group) are not
@@ -79,6 +80,9 @@ exercised, so the combined package is 92.0%.
 ² PR #60 measured `internal/cli` at 35.3% on its own branch; the combined value
 including the instance-lock tests was 37.0% before PR #72 added coverage for the
 additional mutating commands (44.5%).
+
+³ PR #62 measured `internal/fsutil` at 54.0% while `SafeJoin` still existed.
+Removing the unused helper in #77 raised the package to 66.7%.
 
 ## 4. Problems found and fixed
 
@@ -100,7 +104,7 @@ additional mutating commands (44.5%).
 | AUDIT-6 | `applyFilter` and `buildDetails` used value receivers. | Every mutation happened on a copy and was discarded: the container table and details pane never refreshed. | Pointer receivers; tests exercise the real `Update` path. |
 | AUDIT-7 | `fetchHealthCmd` dereferenced `inspect.State` without a nil check. | A partial or malformed inspect response crashed the dashboard. | Skips entries whose `State` or health status is missing. |
 | AUDIT-8 | `AtomicWrite` used a fixed `<path>.tmp` and did not `fsync`. | A crash could leave the apply journal or a generated config truncated; concurrent writers shared a temporary name. | Unique `os.CreateTemp` sibling, `chmod`, write, `fsync`, rename, directory `fsync`, cleanup on failure. |
-| AUDIT-9 | Documentation claimed every path goes through `SafeJoin`. | Security documentation overstated an enforced control. `SafeJoin` has no production caller; restore uses stricter entry-by-entry checks. | README, `SECURITY.md`, contributor checklist, risk register and threat model now describe the actual controls. |
+| AUDIT-9 | Documentation claimed every path goes through `SafeJoin`. | Security documentation overstated an enforced control. `SafeJoin` has no production caller; restore uses stricter entry-by-entry checks. | README, `SECURITY.md`, contributor checklist, risk register and threat model now describe the actual controls. The unused helper was removed in #77. |
 | AUDIT-10 | `RunWithTimeout` killed only the direct child. | A timed-out command could keep blocking until descendants closed the output pipe. Measured: 5.00s for a 100ms timeout with a background `sleep 5`. | Child starts in its own process group; cancellation sends `SIGKILL` to `-pid`; `WaitDelay` bounds the pipe drain. Measured: 0.10s. |
 | AUDIT-11 | Nothing serialised mutating commands. | A concurrent `apply` and `down` could interleave backup, compose rewrite and container removal. | `internal/instancelock` takes an exclusive, non-blocking `flock` on `<state>/orvyn.lock`; refused runs are audited as `result=locked`. PR #72 extends it to every mutating command. |
 | AUDIT-12 | The dashboard help listed `s` and `Shift+R` container actions that have no handler, and the changelog advertised them. | Operators expect start/stop/restart from the dashboard and nothing happens; the changelog overstated a shipped feature. | Removed the two help lines and corrected the changelog. The dashboard is read-only, so it needs no instance lock. |
@@ -118,7 +122,7 @@ passes in 0.10s with the fix.
 | OPEN-3 | **Resolved.** The `main-protection` ruleset only required `build-and-test`; `govulncheck`, `image-scan` and `codeql` were advisory on `main` (`required_approving_review_count: 0`). This is why PR #58 could be merged while `image-scan` was red. | Applied with explicit approval. | Done: `main-protection` (id `25801068`) now requires the same four checks. |
 | OPEN-4 | **Resolved.** `internal/discovery`, `internal/resources` and `cmd/orvyn` were at 0% coverage. | The only remaining 0% package was `internal/state`, which had no production caller and was removed under OPEN-5. | Done: discovery 96.4%, resources 100.0%, cmd/orvyn 80.0%; tests use file and Docker-client seams instead of the host. |
 | OPEN-5 | **Resolved by removal.** `internal/state` had no production caller and hardcoded `/var/lib/orvyn`. | Removing or repurposing it is an architectural decision, not a test fix. | Done: the package was deleted; runtime state paths continue to come from `internal/config.Default()`, which is UID-aware. |
-| OPEN-6 | `SafeJoin` has no production caller. | The restore path already uses stricter checks (`safeRel`, `withinRoot`, `ensureNoSymlinks`). | Either use `SafeJoin` at a real call site or remove it; do not keep it as documentation-only security surface. |
+| OPEN-6 | **Resolved by removal.** `SafeJoin` had no production caller. | The restore path already uses stricter checks (`safeRel`, `withinRoot`, `ensureNoSymlinks`). | Done: removed the helper and its error values; restore behaviour is unchanged. |
 | OPEN-7 | **Resolved.** The instance lock covered only `apply`, `down`, `rm` and `uninstall`. | That was the scope of the first phase. | Done: every command that mutates containers or files now takes it (`apply`, `up`, `down`, `prune`, `upgrade`, `restore`, `rm`, `uninstall`, `start`, `stop`, `restart`). The dashboard is read-only, so it needs no lock. |
 | OPEN-8 | `executil` process-group code has two unexercised branches (nil process, already-dead group). | Hard to trigger deterministically without racing the scheduler. | Accept as low risk, or inject a `kill` seam if these branches become security-relevant. |
 | OPEN-9 | Two reachable advisories are accepted in `.github/govulncheck-exclude.txt`: `GO-2026-4887` and `GO-2026-4883` in `github.com/docker/docker v28.5.2+incompatible`. Dependabot also reports four open alerts on the same module (two high, two medium), every one with no patched version. | All four are marked "Fixed in: N/A" upstream; the newest published module is pinned. The two reachable ones are the only ones govulncheck has to allowlist. | Revisit by 2027-01-31 or when a fixed release ships. |
@@ -227,7 +231,8 @@ Priority order:
    (96.4%), `internal/resources` (100.0%) and `cmd/orvyn` (80.0%).
 5. **Remove or wire `internal/state` (OPEN-5).** Done: removed; no code
    imported it and state paths are config-driven.
-6. **Decide on `SafeJoin` (OPEN-6)**: use it at a real call site or remove it.
+6. **Decide on `SafeJoin` (OPEN-6).** Done: removed; restore keeps its stricter
+   `safeRel`/`withinRoot`/`ensureNoSymlinks` checks.
 7. **Add a coverage floor** to CI (for example, fail below the current total) so
    the gain is not lost.
 8. **Provision the local security toolchain** (cgo/`gcc`, `govulncheck`) so
@@ -278,3 +283,4 @@ Alloy CVE.
 | 9 | `feat/instance-lock-coverage` | #72 | Lock every mutating command; correct the dashboard help |
 | 10 | `test/discovery-resources-cmd` | #74 | Discovery, resource detection and binary smoke tests |
 | 11 | `chore/remove-unused-state` | #76 | Remove the unused `internal/state` package |
+| 12 | `chore/remove-unused-safejoin` | #77 | Remove the unused `fsutil.SafeJoin` helper |
