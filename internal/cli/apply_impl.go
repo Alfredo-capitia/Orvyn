@@ -30,6 +30,13 @@ var applyCmd = &cobra.Command{
 		cfg := config.Default()
 		logger := audit.New(cfg.StateDir + "/audit.jsonl")
 
+		lock, err := acquireInstanceLock(cfg)
+		if err != nil {
+			logger.Log(audit.Event{Operation: "apply", Result: "locked"})
+			return err
+		}
+		defer lock.Release()
+
 		// Pre-flight
 		pf := validate.Preflight(ctx)
 		pf.Print()

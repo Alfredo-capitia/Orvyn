@@ -23,6 +23,13 @@ var rmCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 		defer cancel()
 
+		lock, err := acquireInstanceLock(cfg)
+		if err != nil {
+			logger.Log(audit.Event{Operation: "rm", Result: "locked"})
+			return err
+		}
+		defer lock.Release()
+
 		volumes, _ := cmd.Flags().GetBool("volumes")
 		assumeYes, _ := cmd.Flags().GetBool("yes")
 
