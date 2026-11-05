@@ -17,8 +17,12 @@ type Result struct {
 	ExistingStack   []string
 }
 
+// osReleasePath is a variable so tests can read a fixture instead of the host
+// file.
+var osReleasePath = "/etc/os-release"
+
 func OSRelease() string {
-	f, err := os.Open("/etc/os-release")
+	f, err := os.Open(osReleasePath)
 	if err != nil {
 		return "unknown"
 	}
@@ -67,6 +71,9 @@ func Run(ctx context.Context) (*Result, error) {
 	if err == nil {
 		res.Containers = conts
 		for _, c := range conts {
+			if len(c.Names) == 0 {
+				continue
+			}
 			img := strings.ToLower(c.Image)
 			for _, k := range []string{"prometheus", "grafana", "loki", "alloy", "promtail", "node-exporter", "cadvisor"} {
 				if strings.Contains(img, k) {

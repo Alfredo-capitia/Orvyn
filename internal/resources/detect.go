@@ -18,9 +18,13 @@ type Limits struct {
 	PIDsLimit  int
 }
 
+// meminfoPath is a variable so tests can drive every memory tier without
+// touching the host.
+var meminfoPath = "/proc/meminfo"
+
 func Detect() Limits {
 	totalMB := 4096
-	if f, err := os.Open("/proc/meminfo"); err == nil {
+	if f, err := os.Open(meminfoPath); err == nil {
 		defer f.Close()
 		sc := bufio.NewScanner(f)
 		for sc.Scan() {

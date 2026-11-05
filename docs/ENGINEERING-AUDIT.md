@@ -4,6 +4,7 @@ Date: 2026-11-05
 Repository: `Alfredo-capitia/Orvyn`
 Baseline: `0d5b28b` (`dev` before this programme)
 Integration reference: `ff9f968` (`dev` with PRs #58–#66 merged)
+Coverage reference: `f35e482` (`dev` after #72)
 
 This document records what was found, what was fixed, what was deliberately
 left open, and which checks were actually executed. It does not claim a control
@@ -13,8 +14,8 @@ that has not been verified.
 
 | Item | Result |
 |---|---|
-| Total statement coverage | **46.9% → 64.9%** (baseline `0d5b28b`, verified on `dev` at `ff9f968`) |
-| Packages with new or expanded tests | `docker`, `executil`, `config`, `validate`, `cli`, `tui`, `fsutil`, `instancelock` |
+| Total statement coverage | **46.9% → 69.5%** (baseline `0d5b28b`, verified on `dev` at `f35e482` after #72) |
+| Packages with new or expanded tests | `docker`, `executil`, `config`, `validate`, `cli`, `tui`, `fsutil`, `instancelock`, `discovery`, `resources`, `cmd/orvyn` |
 | Production defects fixed | 6 (two TUI state bugs, one crash, non-durable atomic writes, false security documentation, timeout not killing descendants) |
 | Operational control added | Single-writer instance lock for every command that mutates containers or files |
 | External finding | `CVE-2026-109518` in `grafana/alloy:v1.21.3` — **resolved by #66** (distroless image); `image-scan` is green |
@@ -40,12 +41,11 @@ disabled, and no Trivy baseline was edited to hide the Alloy CVE.
 
 ## 3. Coverage
 
-Baseline measured on `0d5b28b` with `go test ./... -cover`. The "after" value
-was measured twice: first on a local integration merge before the PRs landed,
-then on `dev` at `ff9f968` once #58–#66 were merged, with
-`go test ./... -count=1 -coverprofile` and `go tool cover -func`. Both runs
-report the same total, **64.9%**, so the per-package table below is the merged
-state and not an estimate.
+Baseline measured on `0d5b28b` with `go test ./... -cover`. The total was
+re-measured on `dev` at `f35e482` (after #72) with
+`go test ./... -count=1 -coverprofile` and `go tool cover -func`: **69.5%**.
+The earlier merged state (`ff9f968`, after #58–#66) reported 64.9%. The
+per-package table below is the state after #72 and phase 10, not an estimate.
 
 | Package | Before | After | Phase / PR |
 |---|---:|---:|---|
@@ -64,12 +64,12 @@ state and not an estimate.
 | `internal/planner` | 50.0% | 50.0% | unchanged |
 | `internal/redaction` | 92.3% | 92.3% | unchanged |
 | `internal/stack` | 67.1% | 67.1% | unchanged |
-| `internal/discovery` | 0.0% | 0.0% | **still uncovered** |
-| `internal/resources` | 0.0% | 0.0% | **still uncovered** |
-| `internal/state` | 0.0% | 0.0% | **still uncovered** |
-| `cmd/orvyn` | 0.0% | 0.0% | **still uncovered** |
+| `internal/discovery` | 0.0% | 96.4% | 10 / #73 |
+| `internal/resources` | 0.0% | 100.0% | 10 / #73 |
+| `internal/state` | 0.0% | 0.0% | **still uncovered** (OPEN-5) |
+| `cmd/orvyn` | 0.0% | 80.0% | 10 / #73 |
 | `pkg/types` | no tests | no tests | — |
-| **Total** | **46.9%** | **64.9%** | |
+| **Total** | **46.9%** | **69.5%** | |
 
 ¹ PR #59 measured `internal/executil` at 100.0% before PR #64 added the
 process-group code. Two new branches (nil process, already-dead group) are not
@@ -90,6 +90,7 @@ additional mutating commands (44.5%).
 | AUDIT-3 | `internal/cli` | Destructive commands were only tested for the prompt helper. | Ran the real commands against a fake `HOME`, daemon and `docker`, asserting prompts, `--yes`/`--force`, `--volumes`, audit results, ownership guard and failure paths. | PR #60; 35.3% on that branch |
 | AUDIT-4 | `internal/tui` | State transitions and async commands were untested. | Drove `Update` with the messages the program emits: filters, details, refresh, health, logs, keys, commands. | PR #61; 70.9% |
 | AUDIT-5 | `internal/fsutil` | Durability and failure paths were untested. | Covered exact mode, overwrite, failed rename cleanup, unusable directory and 16 concurrent writers. | PR #62; 54.0% |
+| AUDIT-13 | `internal/discovery`, `internal/resources`, `cmd/orvyn` | OS detection, Docker discovery filters, memory tiers and the entry point were untested (0%). `Run` could also panic on a container with no names. | Added file and Docker-daemon seams, covered every memory tier and malformed input, skipped nameless containers, and built/ran the binary for `version` and an unknown command. | PR #73; 96.4% / 100.0% / 80.0% |
 
 ### 4.2 Production defects (fixed)
 
@@ -114,7 +115,7 @@ passes in 0.10s with the fix.
 | OPEN-1 | **Resolved by #66.** `image-scan` failed on `dev` and every PR: `CVE-2026-109518` (HIGH) in `grafana/alloy:v1.21.3`. Installed `apt` / `libapt-pkg6.0t64` `2.8.3`, fixed `2.8.4ubuntu0.1`. Trivy reported 2 HIGH, 0 CRITICAL. | The pinned tag was the newest Docker Hub release (2026-10-28); no exception was added. | Done: the stack now pins `v1.21.3-distroless`, which has the same Alloy binary but no apt package. `image-scan` is green on #66; the earlier PRs inherit the fix once `dev` contains it. |
 | OPEN-2 | **Resolved.** `dev` was not protected (`GET /branches/dev/protection` returned `404 Branch not protected`). | Applied with explicit approval. | Done: the `dev-protection` ruleset (id `26618766`) requires a PR, `build-and-test`, `govulncheck`, `image-scan`, `codeql`, resolved review threads, and forbids force-push/deletion. Approvals stay at 0 for the single maintainer. |
 | OPEN-3 | **Resolved.** The `main-protection` ruleset only required `build-and-test`; `govulncheck`, `image-scan` and `codeql` were advisory on `main` (`required_approving_review_count: 0`). This is why PR #58 could be merged while `image-scan` was red. | Applied with explicit approval. | Done: `main-protection` (id `25801068`) now requires the same four checks. |
-| OPEN-4 | `internal/discovery`, `internal/resources`, `internal/state` and `cmd/orvyn` are at 0% coverage. | Out of scope for the phases completed so far. | Cover discovery filters and resource detection next; add a command smoke test for `cmd/orvyn`. |
+| OPEN-4 | **Resolved for `internal/discovery`, `internal/resources` and `cmd/orvyn`.** Those packages were at 0% coverage. | The remaining 0% package (`internal/state`) has no production caller and is tracked by OPEN-5. | Done: discovery 96.4%, resources 100.0%, cmd/orvyn 80.0%; tests use file and Docker-client seams instead of the host. |
 | OPEN-5 | `internal/state` has no production caller and hardcodes `/var/lib/orvyn`. | Removing or repurposing it is an architectural decision, not a test fix. | Delete it, or make it use `config.Default()` and wire it to the commands that need persisted state. |
 | OPEN-6 | `SafeJoin` has no production caller. | The restore path already uses stricter checks (`safeRel`, `withinRoot`, `ensureNoSymlinks`). | Either use `SafeJoin` at a real call site or remove it; do not keep it as documentation-only security surface. |
 | OPEN-7 | **Resolved.** The instance lock covered only `apply`, `down`, `rm` and `uninstall`. | That was the scope of the first phase. | Done: every command that mutates containers or files now takes it (`apply`, `up`, `down`, `prune`, `upgrade`, `restore`, `rm`, `uninstall`, `start`, `stop`, `restart`). The dashboard is read-only, so it needs no lock. |
@@ -192,7 +193,9 @@ Findings:
 4. **`main` required only `build-and-test`.** **Fixed:** `main-protection` now
    requires `govulncheck`, `image-scan` and `codeql` as well.
 5. **Coverage is reported but not gated.** The number can regress silently.
-6. **No integration test runs the built binary.** `cmd/orvyn` is untested.
+6. **No integration test ran the built binary.** **Fixed in phase 10:**
+   `cmd/orvyn` now builds the binary and checks `version` and an unknown
+   command; `run()` is also exercised in-process for both exit codes.
 
 ## 9. Residual risks
 
@@ -201,7 +204,7 @@ Findings:
 | Alloy base-image CVE reaches production images | High | Resolved by #66 (distroless); future findings block `image-scan` |
 | A security job can regress without blocking `dev` or `main` | High | Mitigated: all four checks are required on `dev` and `main` |
 | Two mutating commands outside the lock interleave | Medium | Resolved: every mutating command takes the lock (OPEN-7) |
-| Uncovered discovery/resource/state code hides regressions | Medium | Open; OPEN-4 |
+| Uncovered discovery/resource/state code hides regressions | Medium | Resolved for discovery and resources; `cmd/orvyn` has a smoke test; `internal/state` remains (OPEN-5) |
 | `internal/state` writes to a hardcoded root-owned path if ever wired | Medium | Open; OPEN-5 |
 | Accepted Docker advisories remain reachable | Medium | Documented until 2027-01-31; OPEN-9 |
 | Local race/govulncheck gaps reduce pre-push confidence | Medium | Mitigated by CI, not by local runs; OPEN-10 |
@@ -219,8 +222,9 @@ Priority order:
    Approvals remain at 0 because the project has a single maintainer.
 3. **Extend the instance lock (OPEN-7).** Done: every mutating command now
    takes it; the dashboard is read-only.
-4. **Cover the remaining 0% packages (OPEN-4)**, starting with discovery and
-   resource detection, then a `cmd/orvyn` smoke test.
+4. **Cover the remaining 0% packages (OPEN-4).** Done for `internal/discovery`
+   (96.4%), `internal/resources` (100.0%) and `cmd/orvyn` (80.0%);
+   `internal/state` remains and is tracked by OPEN-5.
 5. **Remove or wire `internal/state` (OPEN-5)** so the repository has no unused
    storage layer with a hardcoded privileged path.
 6. **Decide on `SafeJoin` (OPEN-6)**: use it at a real call site or remove it.
@@ -272,3 +276,4 @@ Alloy CVE.
 | 7 | `fix/executil-process-group` | #64 | Timeout kills the process group |
 | 8 | `docs/engineering-audit` | #65 (merged) | Audit report |
 | 9 | `feat/instance-lock-coverage` | #72 | Lock every mutating command; correct the dashboard help |
+| 10 | `test/discovery-resources-cmd` | #73 | Discovery, resource detection and binary smoke tests |
