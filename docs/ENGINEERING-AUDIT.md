@@ -17,8 +17,9 @@ that has not been verified.
 | Packages with new or expanded tests | `docker`, `executil`, `config`, `validate`, `cli`, `tui`, `fsutil`, `instancelock` |
 | Production defects fixed | 6 (two TUI state bugs, one crash, non-durable atomic writes, false security documentation, timeout not killing descendants) |
 | Operational control added | Single-writer instance lock for `apply`, `down`, `rm`, `uninstall` |
-| Unresolved external finding | `CVE-2026-109518` in `grafana/alloy:v1.21.3` keeps `image-scan` red |
-| CI/CD finding | `dev` is unprotected; the default-branch ruleset only requires `build-and-test` |
+| External finding | `CVE-2026-109518` in `grafana/alloy:v1.21.3` — **resolved by #66** (distroless image); `image-scan` is green |
+| Follow-up (2026-11-05) | `dev-protection` ruleset created; `main-protection` now requires all four security checks |
+| CI/CD finding | **Fixed:** `dev` had no protection and `main` required only `build-and-test`; both now require the four security checks |
 | Race detector | Not runnable locally (no C toolchain); CI runs `go test -race` and passes |
 | `govulncheck` | Not runnable locally (tool absent, network failure); CI job passes |
 
@@ -103,13 +104,13 @@ Each fix has a regression test in the corresponding PR. The process-group fix
 was verified both ways: the new test fails in 5.00s with the old behaviour and
 passes in 0.10s with the fix.
 
-## 5. Problems found and not fixed
+## 5. Problems found and their disposition
 
 | ID | Finding | Why it is open | Recommendation |
 |---|---|---|---|
-| OPEN-1 | `image-scan` fails on `dev` and every PR: `CVE-2026-109518` (HIGH) in `grafana/alloy:v1.21.3`. Installed `apt` / `libapt-pkg6.0t64` `2.8.3`, fixed `2.8.4ubuntu0.1`. Trivy reports 2 HIGH, 0 CRITICAL. | The pinned tag is the newest Docker Hub release (2026-10-28). The baseline correctly has no exception. Adding one would hide a real finding. | Wait for an Alloy image with the fixed base, or record a dated, scoped exception with an explicit review date if operationally unavoidable. Revisit the tag when upstream publishes. |
-| OPEN-2 | `dev` is not protected. `GET /branches/dev/protection` returns `404 Branch not protected`. | Changing repository settings is outside the code-hardening scope and needs explicit approval. | Apply a ruleset to `dev` requiring `build-and-test`, `govulncheck`, `image-scan` and `codeql`, plus at least one approval. |
-| OPEN-3 | The `main-protection` ruleset only requires `build-and-test`. `govulncheck`, `image-scan` and `codeql` are advisory on `main`. `required_approving_review_count` is `0`. | Same as OPEN-2. This is why PR #58 could be merged while `image-scan` was red. | Add the security jobs to required checks and require an approval. Keep code-owner review meaningful. |
+| OPEN-1 | **Resolved by #66.** `image-scan` failed on `dev` and every PR: `CVE-2026-109518` (HIGH) in `grafana/alloy:v1.21.3`. Installed `apt` / `libapt-pkg6.0t64` `2.8.3`, fixed `2.8.4ubuntu0.1`. Trivy reported 2 HIGH, 0 CRITICAL. | The pinned tag was the newest Docker Hub release (2026-10-28); no exception was added. | Done: the stack now pins `v1.21.3-distroless`, which has the same Alloy binary but no apt package. `image-scan` is green on #66; the earlier PRs inherit the fix once `dev` contains it. |
+| OPEN-2 | **Resolved.** `dev` was not protected (`GET /branches/dev/protection` returned `404 Branch not protected`). | Applied with explicit approval. | Done: the `dev-protection` ruleset (id `26618766`) requires a PR, `build-and-test`, `govulncheck`, `image-scan`, `codeql`, resolved review threads, and forbids force-push/deletion. Approvals stay at 0 for the single maintainer. |
+| OPEN-3 | **Resolved.** The `main-protection` ruleset only required `build-and-test`; `govulncheck`, `image-scan` and `codeql` were advisory on `main` (`required_approving_review_count: 0`). This is why PR #58 could be merged while `image-scan` was red. | Applied with explicit approval. | Done: `main-protection` (id `25801068`) now requires the same four checks. |
 | OPEN-4 | `internal/discovery`, `internal/resources`, `internal/state` and `cmd/orvyn` are at 0% coverage. | Out of scope for the phases completed so far. | Cover discovery filters and resource detection next; add a command smoke test for `cmd/orvyn`. |
 | OPEN-5 | `internal/state` has no production caller and hardcodes `/var/lib/orvyn`. | Removing or repurposing it is an architectural decision, not a test fix. | Delete it, or make it use `config.Default()` and wire it to the commands that need persisted state. |
 | OPEN-6 | `SafeJoin` has no production caller. | The restore path already uses stricter checks (`safeRel`, `withinRoot`, `ensureNoSymlinks`). | Either use `SafeJoin` at a real call site or remove it; do not keep it as documentation-only security surface. |
@@ -175,18 +176,18 @@ Observed workflow (`.github/workflows/ci.yml`):
 
 Findings:
 
-1. **`image-scan` is red for an external reason.** The scan iterates the images
-   alphabetically: `gcr.io/cadvisor/cadvisor:v0.50.0` passes, then
-   `grafana/alloy:v1.21.3` fails. Because the job uses `set -e`, the remaining
-   images (`loki`, `node-exporter`, `prometheus`) are not re-validated in that
-   run. The failure is not caused by this programme.
+1. **`image-scan` was red for an external reason.** The scan iterates the images
+   alphabetically: `gcr.io/cadvisor/cadvisor:v0.50.0` passed, then
+   `grafana/alloy:v1.21.3` failed. Because the job uses `set -e`, the remaining
+   images (`loki`, `node-exporter`, `prometheus`) were not re-validated in that
+   run. **Resolved by #66**: the distroless tag passes the same scan.
 2. **PR #58 was merged with `image-scan` failing** (`build-and-test`,
-   `govulncheck` and `codeql` were green). This is evidence that the current
-   repository settings do not enforce the security jobs.
-3. **`dev` has no branch protection.** Direct pushes and merges without green
-   checks are possible.
-4. **`main` protection requires only `build-and-test`.** A red security job does
-   not block a release.
+   `govulncheck` and `codeql` were green). This showed that the repository
+   settings did not enforce the security jobs.
+3. **`dev` had no branch protection.** **Fixed:** the `dev-protection` ruleset
+   now requires the four checks.
+4. **`main` required only `build-and-test`.** **Fixed:** `main-protection` now
+   requires `govulncheck`, `image-scan` and `codeql` as well.
 5. **Coverage is reported but not gated.** The number can regress silently.
 6. **No integration test runs the built binary.** `cmd/orvyn` is untested.
 
@@ -194,8 +195,8 @@ Findings:
 
 | Risk | Severity | Status |
 |---|---|---|
-| Alloy base-image CVE reaches production images | High | Open, external; tracked as OPEN-1 |
-| A security job can regress without blocking `dev` or `main` | High | Open, repository settings; OPEN-2/OPEN-3 |
+| Alloy base-image CVE reaches production images | High | Resolved by #66 (distroless); future findings block `image-scan` |
+| A security job can regress without blocking `dev` or `main` | High | Mitigated: all four checks are required on `dev` and `main` |
 | Two mutating commands outside the lock interleave | Medium | Open; OPEN-7 |
 | Uncovered discovery/resource/state code hides regressions | Medium | Open; OPEN-4 |
 | `internal/state` writes to a hardcoded root-owned path if ever wired | Medium | Open; OPEN-5 |
@@ -208,12 +209,11 @@ Findings:
 
 Priority order:
 
-1. **Resolve or date the Alloy CVE (OPEN-1).** Prefer a new upstream tag. If none
-   exists when a release is required, add a narrowly scoped exception with a
-   statement, an owner and a short expiry, and open a tracking issue.
-2. **Protect `dev` and strengthen `main` (OPEN-2/OPEN-3).** Require
-   `build-and-test`, `govulncheck`, `image-scan` and `codeql`, plus at least one
-   approving review; keep code-owner review meaningful.
+1. **Resolve or date the Alloy CVE (OPEN-1).** Done in #66: switched to the
+   distroless variant instead of adding an exception. Keep the tag current.
+2. **Protect `dev` and strengthen `main` (OPEN-2/OPEN-3).** Done: both rulesets
+   now require `build-and-test`, `govulncheck`, `image-scan` and `codeql`.
+   Approvals remain at 0 because the project has a single maintainer.
 3. **Extend the instance lock (OPEN-7)** to every mutating command and to TUI
    actions.
 4. **Cover the remaining 0% packages (OPEN-4)**, starting with discovery and
