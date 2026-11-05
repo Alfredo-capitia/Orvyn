@@ -58,7 +58,7 @@ not an estimate.
 | `internal/validate` | 0.0% | 87.8% | 2 / #59 |
 | `internal/cli` | 14.3% | 44.5% ² | 3 / #60, 6 / #63, 9 / #72 |
 | `internal/tui` | 35.9% | 70.9% | 4 / #61 |
-| `internal/fsutil` | 45.0% | 66.7% ³ | 5 / #62, 12 / #77 |
+| `internal/fsutil` | 45.0% | 66.7% ³ | 5 / #62, 12 / #78 |
 | `internal/instancelock` | — (new) | 81.4% | 6 / #63 |
 | `internal/apply` | 93.3% | 93.3% | unchanged |
 | `internal/audit` | 80.0% | 80.0% | unchanged |
@@ -82,7 +82,7 @@ including the instance-lock tests was 37.0% before PR #72 added coverage for the
 additional mutating commands (44.5%).
 
 ³ PR #62 measured `internal/fsutil` at 54.0% while `SafeJoin` still existed.
-Removing the unused helper in #77 raised the package to 66.7%.
+Removing the unused helper in #78 raised the package to 66.7%.
 
 ## 4. Problems found and fixed
 
@@ -104,7 +104,7 @@ Removing the unused helper in #77 raised the package to 66.7%.
 | AUDIT-6 | `applyFilter` and `buildDetails` used value receivers. | Every mutation happened on a copy and was discarded: the container table and details pane never refreshed. | Pointer receivers; tests exercise the real `Update` path. |
 | AUDIT-7 | `fetchHealthCmd` dereferenced `inspect.State` without a nil check. | A partial or malformed inspect response crashed the dashboard. | Skips entries whose `State` or health status is missing. |
 | AUDIT-8 | `AtomicWrite` used a fixed `<path>.tmp` and did not `fsync`. | A crash could leave the apply journal or a generated config truncated; concurrent writers shared a temporary name. | Unique `os.CreateTemp` sibling, `chmod`, write, `fsync`, rename, directory `fsync`, cleanup on failure. |
-| AUDIT-9 | Documentation claimed every path goes through `SafeJoin`. | Security documentation overstated an enforced control. `SafeJoin` has no production caller; restore uses stricter entry-by-entry checks. | README, `SECURITY.md`, contributor checklist, risk register and threat model now describe the actual controls. The unused helper was removed in #77. |
+| AUDIT-9 | Documentation claimed every path goes through `SafeJoin`. | Security documentation overstated an enforced control. `SafeJoin` has no production caller; restore uses stricter entry-by-entry checks. | README, `SECURITY.md`, contributor checklist, risk register and threat model now describe the actual controls. The unused helper was removed in #78. |
 | AUDIT-10 | `RunWithTimeout` killed only the direct child. | A timed-out command could keep blocking until descendants closed the output pipe. Measured: 5.00s for a 100ms timeout with a background `sleep 5`. | Child starts in its own process group; cancellation sends `SIGKILL` to `-pid`; `WaitDelay` bounds the pipe drain. Measured: 0.10s. |
 | AUDIT-11 | Nothing serialised mutating commands. | A concurrent `apply` and `down` could interleave backup, compose rewrite and container removal. | `internal/instancelock` takes an exclusive, non-blocking `flock` on `<state>/orvyn.lock`; refused runs are audited as `result=locked`. PR #72 extends it to every mutating command. |
 | AUDIT-12 | The dashboard help listed `s` and `Shift+R` container actions that have no handler, and the changelog advertised them. | Operators expect start/stop/restart from the dashboard and nothing happens; the changelog overstated a shipped feature. | Removed the two help lines and corrected the changelog. The dashboard is read-only, so it needs no instance lock. |
@@ -283,4 +283,4 @@ Alloy CVE.
 | 9 | `feat/instance-lock-coverage` | #72 | Lock every mutating command; correct the dashboard help |
 | 10 | `test/discovery-resources-cmd` | #74 | Discovery, resource detection and binary smoke tests |
 | 11 | `chore/remove-unused-state` | #76 | Remove the unused `internal/state` package |
-| 12 | `chore/remove-unused-safejoin` | #77 | Remove the unused `fsutil.SafeJoin` helper |
+| 12 | `chore/remove-unused-safejoin` | #78 | Remove the unused `fsutil.SafeJoin` helper |
