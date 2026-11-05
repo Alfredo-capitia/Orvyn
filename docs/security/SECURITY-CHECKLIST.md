@@ -12,7 +12,7 @@
 - [ ] Input validated
 - [ ] No shell concatenation
 - [ ] Secrets not logged
-- [ ] Paths stay under a validated root (SafeJoin or equivalent)
+- [ ] Paths stay under a validated root (`safeRel`/`withinRoot`/`ensureNoSymlinks` or equivalent)
 - [ ] Resource limits applied
 - [ ] Errors sanitized
 

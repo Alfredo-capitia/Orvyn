@@ -9,25 +9,6 @@ import (
 	"testing"
 )
 
-func TestSafeJoinTraversal(t *testing.T) {
-	base := t.TempDir()
-	_, err := SafeJoin(base, "../../etc/passwd")
-	if err == nil {
-		t.Fatal("expected error for path traversal")
-	}
-}
-
-func TestSafeJoinNormal(t *testing.T) {
-	base := t.TempDir()
-	p, err := SafeJoin(base, "config.yml")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.HasPrefix(p, base) {
-		t.Fatalf("path outside base: %s", p)
-	}
-}
-
 func TestAtomicWrite(t *testing.T) {
 	base := t.TempDir()
 	p := filepath.Join(base, "test.txt")

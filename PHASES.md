@@ -9,7 +9,7 @@
 - [x] Compilar com sucesso
 
 ## Fase 1: Core de Segurança [COMPLETED]
-- [x] internal/fsutil/ - SafeJoin, path traversal protection
+- [x] internal/fsutil/ - escrita atómica durável; path traversal protection no restore (safeRel/withinRoot/ensureNoSymlinks)
 - [x] internal/redaction/ - Redação de segredos
 - [x] internal/audit/ - Logging de eventos sem segredos
 - [x] internal/state/ - removido em OPEN-5; os paths de estado vêm de internal/config
