@@ -29,6 +29,7 @@ func RunWithTimeout(ctx context.Context, timeout time.Duration, name string, arg
 	c, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	cmd := exec.CommandContext(c, name, args...)
+	configureProcessGroup(cmd)
 	out, err := cmd.CombinedOutput()
 	return out, err
 }
