@@ -122,7 +122,7 @@ func containerName(ct docker.Container) string {
 	return strings.TrimPrefix(ct.Names[0], "/")
 }
 
-func (m model) applyFilter() {
+func (m *model) applyFilter() {
 	if !m.filterActive || m.filterQuery == "" {
 		m.filtered = nil
 		rows := []table.Row{}
@@ -185,7 +185,7 @@ func (m model) getList() []docker.Container {
 	return m.containers
 }
 
-func (m model) buildDetails() {
+func (m *model) buildDetails() {
 	list := m.getList()
 	if len(list) == 0 {
 		list = m.containers
@@ -280,9 +280,12 @@ func fetchHealthCmd(containers []docker.Container) tea.Cmd {
 			if err != nil {
 				continue
 			}
-			if ins.State.Health != nil && ins.State.Health.Status != "" {
-				health[ct.ID] = ins.State.Health.Status
+			// A partial or malformed inspect response must not crash the
+			// dashboard while it is refreshing.
+			if ins.State == nil || ins.State.Health == nil || ins.State.Health.Status == "" {
+				continue
 			}
+			health[ct.ID] = ins.State.Health.Status
 		}
 		return healthMsg(health)
 	}
