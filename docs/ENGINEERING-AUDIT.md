@@ -64,10 +64,10 @@ per-package table below is the state after #72 and phase 10, not an estimate.
 | `internal/planner` | 50.0% | 50.0% | unchanged |
 | `internal/redaction` | 92.3% | 92.3% | unchanged |
 | `internal/stack` | 67.1% | 67.1% | unchanged |
-| `internal/discovery` | 0.0% | 96.4% | 10 / #73 |
-| `internal/resources` | 0.0% | 100.0% | 10 / #73 |
+| `internal/discovery` | 0.0% | 96.4% | 10 / #74 |
+| `internal/resources` | 0.0% | 100.0% | 10 / #74 |
 | `internal/state` | 0.0% | 0.0% | **still uncovered** (OPEN-5) |
-| `cmd/orvyn` | 0.0% | 80.0% | 10 / #73 |
+| `cmd/orvyn` | 0.0% | 80.0% | 10 / #74 |
 | `pkg/types` | no tests | no tests | — |
 | **Total** | **46.9%** | **69.5%** | |
 
@@ -90,7 +90,7 @@ additional mutating commands (44.5%).
 | AUDIT-3 | `internal/cli` | Destructive commands were only tested for the prompt helper. | Ran the real commands against a fake `HOME`, daemon and `docker`, asserting prompts, `--yes`/`--force`, `--volumes`, audit results, ownership guard and failure paths. | PR #60; 35.3% on that branch |
 | AUDIT-4 | `internal/tui` | State transitions and async commands were untested. | Drove `Update` with the messages the program emits: filters, details, refresh, health, logs, keys, commands. | PR #61; 70.9% |
 | AUDIT-5 | `internal/fsutil` | Durability and failure paths were untested. | Covered exact mode, overwrite, failed rename cleanup, unusable directory and 16 concurrent writers. | PR #62; 54.0% |
-| AUDIT-13 | `internal/discovery`, `internal/resources`, `cmd/orvyn` | OS detection, Docker discovery filters, memory tiers and the entry point were untested (0%). `Run` could also panic on a container with no names. | Added file and Docker-daemon seams, covered every memory tier and malformed input, skipped nameless containers, and built/ran the binary for `version` and an unknown command. | PR #73; 96.4% / 100.0% / 80.0% |
+| AUDIT-13 | `internal/discovery`, `internal/resources`, `cmd/orvyn` | OS detection, Docker discovery filters, memory tiers and the entry point were untested (0%). `Run` could also panic on a container with no names. | Added file and Docker-daemon seams, covered every memory tier and malformed input, skipped nameless containers, and built/ran the binary for `version` and an unknown command. | PR #74; 96.4% / 100.0% / 80.0% |
 
 ### 4.2 Production defects (fixed)
 
@@ -276,4 +276,4 @@ Alloy CVE.
 | 7 | `fix/executil-process-group` | #64 | Timeout kills the process group |
 | 8 | `docs/engineering-audit` | #65 (merged) | Audit report |
 | 9 | `feat/instance-lock-coverage` | #72 | Lock every mutating command; correct the dashboard help |
-| 10 | `test/discovery-resources-cmd` | #73 | Discovery, resource detection and binary smoke tests |
+| 10 | `test/discovery-resources-cmd` | #74 | Discovery, resource detection and binary smoke tests |
