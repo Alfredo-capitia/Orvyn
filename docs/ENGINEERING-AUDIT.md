@@ -3,7 +3,7 @@
 Date: 2026-11-05
 Repository: `Alfredo-capitia/Orvyn`
 Baseline: `0d5b28b` (`dev` before this programme)
-Integration reference: `0a0a918` (`dev` after PR #58) plus the open phase PRs
+Integration reference: `ff9f968` (`dev` with PRs #58–#66 merged)
 
 This document records what was found, what was fixed, what was deliberately
 left open, and which checks were actually executed. It does not claim a control
@@ -13,7 +13,7 @@ that has not been verified.
 
 | Item | Result |
 |---|---|
-| Total statement coverage | **46.9% → 64.9%** (local integration measurement) |
+| Total statement coverage | **46.9% → 64.9%** (baseline `0d5b28b`, verified on `dev` at `ff9f968`) |
 | Packages with new or expanded tests | `docker`, `executil`, `config`, `validate`, `cli`, `tui`, `fsutil`, `instancelock` |
 | Production defects fixed | 6 (two TUI state bugs, one crash, non-durable atomic writes, false security documentation, timeout not killing descendants) |
 | Operational control added | Single-writer instance lock for `apply`, `down`, `rm`, `uninstall` |
@@ -40,11 +40,12 @@ disabled, and no Trivy baseline was edited to hide the Alloy CVE.
 
 ## 3. Coverage
 
-Baseline measured on `0d5b28b` with `go test ./... -cover`. Combined value
-measured on a local, unpushed integration merge of PRs #59–#64 on top of
-`0a0a918` with `go test ./... -coverprofile` and
-`go tool cover -func`. The upstream total will only be official after those
-PRs are merged.
+Baseline measured on `0d5b28b` with `go test ./... -cover`. The "after" value
+was measured twice: first on a local integration merge before the PRs landed,
+then on `dev` at `ff9f968` once #58–#66 were merged, with
+`go test ./... -count=1 -coverprofile` and `go tool cover -func`. Both runs
+report the same total, **64.9%**, so the per-package table below is the merged
+state and not an estimate.
 
 | Package | Before | After | Phase / PR |
 |---|---:|---:|---|
@@ -116,7 +117,7 @@ passes in 0.10s with the fix.
 | OPEN-6 | `SafeJoin` has no production caller. | The restore path already uses stricter checks (`safeRel`, `withinRoot`, `ensureNoSymlinks`). | Either use `SafeJoin` at a real call site or remove it; do not keep it as documentation-only security surface. |
 | OPEN-7 | The instance lock covers `apply`, `down`, `rm` and `uninstall`, but not `prune`, `upgrade`, `restore`, `start`, `stop`, `restart` or TUI actions. | The phase scope was the four stack-mutating commands. | Extend the same lock to every command that mutates containers or files, including TUI actions. |
 | OPEN-8 | `executil` process-group code has two unexercised branches (nil process, already-dead group). | Hard to trigger deterministically without racing the scheduler. | Accept as low risk, or inject a `kill` seam if these branches become security-relevant. |
-| OPEN-9 | Two reachable advisories are accepted in `.github/govulncheck-exclude.txt`: `GO-2026-4887` and `GO-2026-4883` in `github.com/docker/docker v28.5.2+incompatible`. | Both are marked "Fixed in: N/A" upstream; the newest published module is pinned. | Revisit by 2027-01-31 or when a fixed release ships. |
+| OPEN-9 | Two reachable advisories are accepted in `.github/govulncheck-exclude.txt`: `GO-2026-4887` and `GO-2026-4883` in `github.com/docker/docker v28.5.2+incompatible`. Dependabot also reports four open alerts on the same module (two high, two medium), every one with no patched version. | All four are marked "Fixed in: N/A" upstream; the newest published module is pinned. The two reachable ones are the only ones govulncheck has to allowlist. | Revisit by 2027-01-31 or when a fixed release ships. |
 | OPEN-10 | Local `-race` and `govulncheck` could not run. | `-race` requires cgo and `gcc` is not installed; `govulncheck` is not installed and the vulnerability database was unreachable from this host. | Use CI evidence until the local toolchain is provisioned; do not install tooling without approval. |
 
 ## 6. Race detector
@@ -243,7 +244,7 @@ Additional measurements:
 # Baseline (0d5b28b)
 go test ./... -cover              -> total 46.9%
 
-# Integration merge of PRs #59-#64 on 0a0a918 (not pushed)
+# Merged dev (ff9f968, PRs #58-#66)
 go test ./... -count=1 -coverprofile=/tmp/opencode/cover.out
 go tool cover -func=/tmp/opencode/cover.out | tail -1   -> total 64.9%
 
