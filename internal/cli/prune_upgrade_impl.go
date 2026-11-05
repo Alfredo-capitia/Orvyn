@@ -26,6 +26,13 @@ considers removable, so a confirmation is required unless --yes is given.`,
 		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 		defer cancel()
 
+		lock, err := acquireInstanceLock(cfg)
+		if err != nil {
+			logger.Log(audit.Event{Operation: "prune", Result: "locked"})
+			return err
+		}
+		defer lock.Release()
+
 		assumeYes, _ := cmd.Flags().GetBool("yes")
 		if !assumeYes {
 			lines := []string{
@@ -68,6 +75,13 @@ required unless --yes is given.`,
 		logger := audit.New(cfg.StateDir + "/audit.jsonl")
 		ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
 		defer cancel()
+
+		lock, err := acquireInstanceLock(cfg)
+		if err != nil {
+			logger.Log(audit.Event{Operation: "upgrade", Result: "locked"})
+			return err
+		}
+		defer lock.Release()
 
 		assumeYes, _ := cmd.Flags().GetBool("yes")
 		if !assumeYes {

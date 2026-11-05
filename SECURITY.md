@@ -18,7 +18,7 @@ Orvyn follows strict security principles. See the full security strategy in the 
 - **Audit logging** - Security-relevant events logged without secrets
 - **Backups** - Automatic backups before modifications
 - **Confirmation required** - Interactive confirmation for destructive operations (`--yes`/`--force` for automation), with an audit entry per attempt
-- **Single-writer lock** - `apply`, `down`, `rm` and `uninstall` hold a non-blocking `flock` on `<state>/orvyn.lock`; a second run fails with the holder's PID and is audited as `result=locked`
+- **Single-writer lock** - every command that mutates containers or files (`apply`, `up`, `down`, `prune`, `upgrade`, `restore`, `rm`, `uninstall`, `start`, `stop`, `restart`) holds a non-blocking `flock` on `<state>/orvyn.lock`; a second run fails with the holder's PID and is audited as `result=locked`. The dashboard is read-only and is not locked
 - **Read-only by default** - Discovery and plan don't modify anything
 
 ## Reporting Vulnerabilities
