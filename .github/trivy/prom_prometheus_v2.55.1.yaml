@@ -308,3 +308,8 @@ vulnerabilities:
       - "pkg:golang/google.golang.org/grpc@v1.66.0"
     statement: "Accepted for prom/prometheus:v2.55.1; depends on the pinned tag"
     expired_at: 2026-11-30
+  - id: CVE-2026-78661
+    purls:
+      - "pkg:golang/golang.org/x/net@v0.28.0"
+    statement: "Accepted for prom/prometheus:v2.55.1 on 2026-11-09; the pinned image ships golang.org/x/net v0.28.0 and no published tag of this image has the fixed v0.62.0. Re-review and remove when the image ships x/net >= 0.62.0."
+    expired_at: 2026-11-30

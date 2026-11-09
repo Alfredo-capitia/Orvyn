@@ -18,6 +18,14 @@
 # 2026-11-05.
 #
 # The tag is the first Alloy release vendoring github.com/go-jose/go-jose/v4
-# v4.1.6. The scan on this tag is what CI validates; no exceptions are
-# accepted.
-vulnerabilities: []
+# v4.1.6. This file had no exceptions until 2026-11-09, when a Trivy
+# database update reported CVE-2026-78661 (HIGH) in the golang.org/x/net
+# v0.61.0 vendored by the Alloy binary. The fixed module is v0.62.0 and no
+# published Alloy image ships it yet. The exception is scoped to that PURL
+# and expires on 2026-11-30; remove it as soon as a fixed image is available.
+vulnerabilities:
+  - id: CVE-2026-78661
+    purls:
+      - "pkg:golang/golang.org/x/net@v0.61.0"
+    statement: "Accepted for grafana/alloy:v1.21.3-distroless on 2026-11-09; no published Alloy image has the fixed golang.org/x/net v0.62.0 yet. Re-review and remove when a fixed image ships."
+    expired_at: 2026-11-30

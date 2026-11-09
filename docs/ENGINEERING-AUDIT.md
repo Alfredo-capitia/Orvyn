@@ -18,8 +18,9 @@ that has not been verified.
 | Packages with new or expanded tests | `docker`, `executil`, `config`, `validate`, `cli`, `tui`, `fsutil`, `instancelock`, `discovery`, `resources`, `cmd/orvyn` |
 | Production defects fixed | 6 (two TUI state bugs, one crash, non-durable atomic writes, false security documentation, timeout not killing descendants) |
 | Operational control added | Single-writer instance lock for every command that mutates containers or files |
-| External finding | `CVE-2026-109518` in `grafana/alloy:v1.21.3` — **resolved by #66** (distroless image); `image-scan` is green |
+| External finding | `CVE-2026-109518` in `grafana/alloy:v1.21.3` — **resolved by #66** (distroless image). A later advisory, `CVE-2026-78661`, affects every pinned observability image and is tracked as OPEN-11 |
 | Follow-up (2026-11-05) | `dev-protection` ruleset created; `main-protection` now requires all four security checks |
+| Follow-up (2026-11-09) | `CVE-2026-78661` (HIGH) in the `golang.org/x/net` vendored by all five pinned images; no published tag fixes it. Time-boxed baseline exceptions until 2026-11-30 (OPEN-11) |
 | CI/CD finding | **Fixed:** `dev` had no protection and `main` required only `build-and-test`; both now require the four security checks |
 | Race detector | Not runnable locally (no C toolchain); CI runs `go test -race` and passes |
 | `govulncheck` | Not runnable locally (tool absent, network failure); CI job passes |
@@ -127,6 +128,7 @@ passes in 0.10s with the fix.
 | OPEN-8 | `executil` process-group code has two unexercised branches (nil process, already-dead group). | Hard to trigger deterministically without racing the scheduler. | Accept as low risk, or inject a `kill` seam if these branches become security-relevant. |
 | OPEN-9 | Two reachable advisories are accepted in `.github/govulncheck-exclude.txt`: `GO-2026-4887` and `GO-2026-4883` in `github.com/docker/docker v28.5.2+incompatible`. Dependabot also reports four open alerts on the same module (two high, two medium), every one with no patched version. | All four are marked "Fixed in: N/A" upstream; the newest published module is pinned. The two reachable ones are the only ones govulncheck has to allowlist. | Revisit by 2027-01-31 or when a fixed release ships. |
 | OPEN-10 | Local `-race` and `govulncheck` could not run. | `-race` requires cgo and `gcc` is not installed; `govulncheck` is not installed and the vulnerability database was unreachable from this host. | Use CI evidence until the local toolchain is provisioned; do not install tooling without approval. |
+| OPEN-11 | `image-scan` fails on `CVE-2026-78661` (HIGH, `golang.org/x/net` DoS) in all five pinned images: cadvisor v0.26.0, Alloy v0.61.0, Loki v0.30.0, node-exporter v0.23.0 and Prometheus v0.28.0. The scan found it on 2026-11-09 after a Trivy database update, unrelated to code changes. | No published image is built with `golang.org/x/net >= 0.62.0`: cadvisor `v0.55.1` ships `v0.47.0` and `v0.60.6` ships `v0.57.0`; the Alloy, Loki, node-exporter and Prometheus pins are the newest reviewed tags. Bumping the whole stack would change four to five production images and still not fix the finding. | Time-boxed, package-scoped exceptions in the five `.github/trivy/*.yaml` baselines until **2026-11-30**. Remove each entry as soon as its image ships `x/net >= 0.62.0`; Trivy re-reports the finding after the expiry. |
 
 ## 6. Race detector
 
@@ -212,6 +214,7 @@ Findings:
 | Uncovered discovery/resource/state code hides regressions | Medium | Resolved: discovery and resources are covered; `cmd/orvyn` has a smoke test; `internal/state` was removed (OPEN-5) |
 | `internal/state` writes to a hardcoded root-owned path if ever wired | Medium | Resolved: the unused package was removed |
 | Accepted Docker advisories remain reachable | Medium | Documented until 2027-01-31; OPEN-9 |
+| cadvisor image CVE cannot be fixed by a tag bump yet | Medium | Time-boxed baseline exceptions until 2026-11-30; OPEN-11 |
 | Local race/govulncheck gaps reduce pre-push confidence | Medium | Mitigated by CI, not by local runs; OPEN-10 |
 | Atomic write is durable but callers do not fsync parent of newly created directories | Low | Accepted; `AtomicWrite` fsyncs the immediate directory |
 | Secret redaction remains best-effort | Medium | Pre-existing and documented in `docs/THREAT-MODEL.md` |

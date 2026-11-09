@@ -333,6 +333,11 @@ vulnerabilities:
       - "pkg:golang/github.com/klauspost/compress@v1.15.11"
     statement: "Accepted for gcr.io/cadvisor/cadvisor:v0.50.0; depends on the pinned tag"
     expired_at: 2026-11-30
+  - id: CVE-2026-78661
+    purls:
+      - "pkg:golang/golang.org/x/net@v0.26.0"
+    statement: "Accepted for gcr.io/cadvisor/cadvisor:v0.50.0 on 2026-11-09; no published cadvisor image builds with golang.org/x/net >= 0.62.0 yet (v0.55.1 uses v0.47.0, v0.60.6 uses v0.57.0). Re-review and remove when a fixed image ships."
+    expired_at: 2026-11-30
   - id: CVE-2026-78667
     purls:
       - "pkg:golang/stdlib@v1.22.3"
