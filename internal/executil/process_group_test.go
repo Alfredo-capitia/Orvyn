@@ -4,9 +4,12 @@ package executil
 
 import (
 	"context"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -62,5 +65,66 @@ func TestRunWithTimeoutStillReturnsOutput(t *testing.T) {
 	}
 	if string(out) != "compose-output\n" {
 		t.Errorf("output = %q, want compose-output", out)
+	}
+}
+
+// The cancel hook can run before the command was started. In that case there
+// is no process to signal, and the hook must be a no-op.
+func TestProcessGroupCancelWithoutAProcess(t *testing.T) {
+	old := killProcessGroup
+	t.Cleanup(func() { killProcessGroup = old })
+
+	called := false
+	killProcessGroup = func(int) error {
+		called = true
+		return nil
+	}
+
+	cmd := exec.Command("true")
+	configureProcessGroup(cmd)
+	if cmd.Cancel == nil {
+		t.Fatal("configureProcessGroup did not install a cancel hook")
+	}
+	if err := cmd.Cancel(); err != nil {
+		t.Fatalf("Cancel without a process: %v", err)
+	}
+	if called {
+		t.Error("Cancel tried to signal a group without a process")
+	}
+}
+
+// The group may disappear between the context deadline and the signal. ESRCH
+// means the desired state is already reached, so Cancel must not report it.
+func TestProcessGroupCancelToleratesAGoneGroup(t *testing.T) {
+	old := killProcessGroup
+	t.Cleanup(func() { killProcessGroup = old })
+
+	killProcessGroup = func(pid int) error {
+		if pid != 12345 {
+			t.Errorf("killProcessGroup(pid = %d), want 12345", pid)
+		}
+		return syscall.ESRCH
+	}
+
+	cmd := exec.Command("true")
+	configureProcessGroup(cmd)
+	cmd.Process = &os.Process{Pid: 12345}
+	if err := cmd.Cancel(); err != nil {
+		t.Fatalf("Cancel with an already-gone group: %v", err)
+	}
+}
+
+// Other errors must reach the caller instead of being swallowed.
+func TestProcessGroupCancelReturnsOtherErrors(t *testing.T) {
+	old := killProcessGroup
+	t.Cleanup(func() { killProcessGroup = old })
+
+	killProcessGroup = func(int) error { return syscall.EPERM }
+
+	cmd := exec.Command("true")
+	configureProcessGroup(cmd)
+	cmd.Process = &os.Process{Pid: 12345}
+	if err := cmd.Cancel(); !errors.Is(err, syscall.EPERM) {
+		t.Fatalf("Cancel error = %v, want EPERM", err)
 	}
 }

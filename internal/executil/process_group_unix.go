@@ -13,6 +13,12 @@ import (
 // context is cancelled and the group has been signalled.
 const processGroupWaitDelay = 2 * time.Second
 
+// killProcessGroup is a variable so the two error branches can be exercised
+// without racing the scheduler.
+var killProcessGroup = func(pid int) error {
+	return syscall.Kill(-pid, syscall.SIGKILL)
+}
+
 // configureProcessGroup puts the child in its own process group and makes
 // cancellation kill the whole group.
 //
@@ -26,7 +32,7 @@ func configureProcessGroup(cmd *exec.Cmd) {
 		if cmd.Process == nil {
 			return nil
 		}
-		err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		err := killProcessGroup(cmd.Process.Pid)
 		if errors.Is(err, syscall.ESRCH) {
 			// The group is already gone; there is nothing left to kill.
 			return nil
