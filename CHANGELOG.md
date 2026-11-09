@@ -34,6 +34,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Restore never follows a symlink below the destination root, and cross-filesystem copies land in a sibling temporary file that is renamed into place
 - Backups are written `0600` and restore never applies group/other-writable or setuid bits from an archive
 - Single-writer instance lock (`flock` on `<state>/orvyn.lock`) for every command that mutates containers or files (`apply`, `up`, `down`, `prune`, `upgrade`, `restore`, `rm`, `uninstall`, `start`, `stop`, `restart`); a second run fails with the holder's PID and is audited as `result=locked`
+- Time-boxed, package-scoped Trivy exceptions for `CVE-2026-78661` in the five pinned observability images: no published tag ships the fixed `golang.org/x/net >= 0.62.0`. The exceptions expire on 2026-11-30 and are tracked as OPEN-11 in the engineering audit
 
 ### Changed
 
