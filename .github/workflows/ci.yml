@@ -50,6 +50,19 @@ jobs:
       - name: Coverage summary
         run: go tool cover -func=coverage.out | tail -1
 
+      - name: Enforce coverage floor
+        run: |
+          set -euo pipefail
+          total=$(go tool cover -func=coverage.out | tail -1 | awk '{print $3}' | tr -d '%')
+          floor=70.0
+          echo "Total statement coverage: ${total}% (floor: ${floor}%)"
+          awk -v total="$total" -v floor="$floor" 'BEGIN {
+            if (total < floor) {
+              printf "::error::Total coverage %.1f%% is below the %.1f%% floor\n", total, floor
+              exit 1
+            }
+          }'
+
       - name: Static analysis (staticcheck)
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@v0.8.2

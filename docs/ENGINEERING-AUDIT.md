@@ -21,7 +21,7 @@ that has not been verified.
 | External finding | `CVE-2026-109518` in `grafana/alloy:v1.21.3` — **resolved by #66** (distroless image). A later advisory, `CVE-2026-78661`, affects every pinned observability image and is tracked as OPEN-11 |
 | Follow-up (2026-11-05) | `dev-protection` ruleset created; `main-protection` now requires all four security checks |
 | Follow-up (2026-11-09) | `CVE-2026-78661` (HIGH) in the `golang.org/x/net` vendored by all five pinned images; no published tag fixes it. Time-boxed baseline exceptions until 2026-11-30 (OPEN-11) |
-| CI/CD finding | **Fixed:** `dev` had no protection and `main` required only `build-and-test`; both now require the four security checks |
+| CI/CD finding | **Fixed:** `dev` had no protection and `main` required only `build-and-test`; both now require the four security checks, and CI fails below 70% total coverage |
 | Race detector | Not runnable locally (no C toolchain); CI runs `go test -race` and passes |
 | `govulncheck` | Not runnable locally (tool absent, network failure); CI job passes |
 
@@ -179,7 +179,7 @@ Observed workflow (`.github/workflows/ci.yml`):
 | Formatting | `gofmt -l .` fails the build |
 | Static analysis | `go vet ./...` and pinned `staticcheck v0.8.2` |
 | Tests | `go test -race -count=1 -covermode=atomic` |
-| Coverage output | Printed (`go tool cover -func`) but no threshold is enforced |
+| Coverage output | Printed (`go tool cover -func`) and gated: the build fails below 70.0% total statement coverage |
 | `govulncheck` | Reachability-aware, allowlist with documented exceptions |
 | Image scan | Trivy v0.76.1 per image, HIGH/CRITICAL blocking, per-image baselines, derived from `internal/stack/generate.go`, stale baselines fail |
 | CodeQL | Go, pinned CodeQL action |
@@ -199,7 +199,9 @@ Findings:
    now requires the four checks.
 4. **`main` required only `build-and-test`.** **Fixed:** `main-protection` now
    requires `govulncheck`, `image-scan` and `codeql` as well.
-5. **Coverage is reported but not gated.** The number can regress silently.
+5. **Coverage was reported but not gated.** **Fixed:** `build-and-test` now
+   fails below a 70.0% total statement-coverage floor, so the gain cannot
+   regress silently.
 6. **No integration test ran the built binary.** **Fixed in phase 10:**
    `cmd/orvyn` now builds the binary and checks `version` and an unknown
    command; `run()` is also exercised in-process for both exit codes.
@@ -236,8 +238,7 @@ Priority order:
    imported it and state paths are config-driven.
 6. **Decide on `SafeJoin` (OPEN-6).** Done: removed; restore keeps its stricter
    `safeRel`/`withinRoot`/`ensureNoSymlinks` checks.
-7. **Add a coverage floor** to CI (for example, fail below the current total) so
-   the gain is not lost.
+7. **Add a coverage floor.** Done: CI fails below 70.0% total statement coverage.
 8. **Provision the local security toolchain** (cgo/`gcc`, `govulncheck`) so
    contributors can reproduce CI before pushing.
 
@@ -287,3 +288,4 @@ Alloy CVE.
 | 10 | `test/discovery-resources-cmd` | #74 | Discovery, resource detection and binary smoke tests |
 | 11 | `chore/remove-unused-state` | #76 | Remove the unused `internal/state` package |
 | 12 | `chore/remove-unused-safejoin` | #78 | Remove the unused `fsutil.SafeJoin` helper |
+| 13 | `ci/coverage-floor` | #83 | Fail CI when total coverage drops below 70% |
