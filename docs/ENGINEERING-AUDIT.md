@@ -288,4 +288,4 @@ Alloy CVE.
 | 10 | `test/discovery-resources-cmd` | #74 | Discovery, resource detection and binary smoke tests |
 | 11 | `chore/remove-unused-state` | #76 | Remove the unused `internal/state` package |
 | 12 | `chore/remove-unused-safejoin` | #78 | Remove the unused `fsutil.SafeJoin` helper |
-| 13 | `ci/coverage-floor` | #80 | Fail CI when total coverage drops below 70% |
+| 13 | `ci/coverage-floor` | #83 | Fail CI when total coverage drops below 70% |
