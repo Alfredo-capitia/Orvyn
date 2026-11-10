@@ -14,7 +14,7 @@ that has not been verified.
 
 | Item | Result |
 |---|---|
-| Total statement coverage | **46.9% → 71.1%** (baseline `0d5b28b`, verified on `dev` at `d31228a` after #74) |
+| Total statement coverage | **46.9% → 71.2%** (baseline `0d5b28b`; verified on `dev` at `d31228a` after #74 and at 71.2% after phase 14) |
 | Packages with new or expanded tests | `docker`, `executil`, `config`, `validate`, `cli`, `tui`, `fsutil`, `instancelock`, `discovery`, `resources`, `cmd/orvyn` |
 | Production defects fixed | 6 (two TUI state bugs, one crash, non-durable atomic writes, false security documentation, timeout not killing descendants) |
 | Operational control added | Single-writer instance lock for every command that mutates containers or files |
@@ -47,14 +47,15 @@ re-measured on `dev` at `d31228a` (after #74) with
 `go test ./... -count=1 -coverprofile` and `go tool cover -func`: **69.5%**.
 Removing the unused `internal/state` package and the unused `fsutil.SafeJoin`
 helper then raised the total to **71.1%**, because their statements left the
-denominator. The earlier merged state (`ff9f968`, after #58–#66) reported
+denominator. Phase 14 covered the last two `executil` branches and took the
+total to **71.2%**. The earlier merged state (`ff9f968`, after #58–#66) reported
 64.9%. The per-package table below is the state after #74 and those removals,
 not an estimate.
 
 | Package | Before | After | Phase / PR |
 |---|---:|---:|---|
 | `internal/docker` | 16.4% | 94.0% | 1 / #58 (merged) |
-| `internal/executil` | 33.3% | 92.0% ¹ | 2 / #59, 7 / #64 |
+| `internal/executil` | 33.3% | 100.0% ¹ | 2 / #59, 7 / #64, 14 / #85 |
 | `internal/config` | 42.9% | 85.7% | 2 / #59 |
 | `internal/validate` | 0.0% | 87.8% | 2 / #59 |
 | `internal/cli` | 14.3% | 44.5% ² | 3 / #60, 6 / #63, 9 / #72 |
@@ -72,11 +73,12 @@ not an estimate.
 | `internal/resources` | 0.0% | 100.0% | 10 / #74 |
 | `cmd/orvyn` | 0.0% | 80.0% | 10 / #74 |
 | `pkg/types` | no tests | no tests | — |
-| **Total** | **46.9%** | **71.1%** | |
+| **Total** | **46.9%** | **71.2%** | |
 
 ¹ PR #59 measured `internal/executil` at 100.0% before PR #64 added the
-process-group code. Two new branches (nil process, already-dead group) are not
-exercised, so the combined package is 92.0%.
+process-group code. PR #64 left two branches unexercised (nil process,
+already-dead group), taking the package to 92.0%. Phase 14 added a `kill`
+seam and deterministic tests for both, restoring 100.0%.
 
 ² PR #60 measured `internal/cli` at 35.3% on its own branch; the combined value
 including the instance-lock tests was 37.0% before PR #72 added coverage for the
@@ -97,6 +99,7 @@ Removing the unused helper in #78 raised the package to 66.7%.
 | AUDIT-4 | `internal/tui` | State transitions and async commands were untested. | Drove `Update` with the messages the program emits: filters, details, refresh, health, logs, keys, commands. | PR #61; 70.9% |
 | AUDIT-5 | `internal/fsutil` | Durability and failure paths were untested. | Covered exact mode, overwrite, failed rename cleanup, unusable directory and 16 concurrent writers. | PR #62; 54.0% |
 | AUDIT-13 | `internal/discovery`, `internal/resources`, `cmd/orvyn` | OS detection, Docker discovery filters, memory tiers and the entry point were untested (0%). `Run` could also panic on a container with no names. | Added file and Docker-daemon seams, covered every memory tier and malformed input, skipped nameless containers, and built/ran the binary for `version` and an unknown command. | PR #74; 96.4% / 100.0% / 80.0% |
+| AUDIT-14 | `internal/executil` | Two process-group cancel branches were unexercised (92.0%): nil process and already-dead group. | Extracted `killProcessGroup` as a seam and covered the nil-process no-op, the ESRCH tolerance and the propagation of other errors. | Phase 14; 100.0% |
 
 ### 4.2 Production defects (fixed)
 
@@ -125,7 +128,7 @@ passes in 0.10s with the fix.
 | OPEN-5 | **Resolved by removal.** `internal/state` had no production caller and hardcoded `/var/lib/orvyn`. | Removing or repurposing it is an architectural decision, not a test fix. | Done: the package was deleted; runtime state paths continue to come from `internal/config.Default()`, which is UID-aware. |
 | OPEN-6 | **Resolved by removal.** `SafeJoin` had no production caller. | The restore path already uses stricter checks (`safeRel`, `withinRoot`, `ensureNoSymlinks`). | Done: removed the helper and its error values; restore behaviour is unchanged. |
 | OPEN-7 | **Resolved.** The instance lock covered only `apply`, `down`, `rm` and `uninstall`. | That was the scope of the first phase. | Done: every command that mutates containers or files now takes it (`apply`, `up`, `down`, `prune`, `upgrade`, `restore`, `rm`, `uninstall`, `start`, `stop`, `restart`). The dashboard is read-only, so it needs no lock. |
-| OPEN-8 | `executil` process-group code has two unexercised branches (nil process, already-dead group). | Hard to trigger deterministically without racing the scheduler. | Accept as low risk, or inject a `kill` seam if these branches become security-relevant. |
+| OPEN-8 | **Resolved by phase 14.** `executil` process-group code had two unexercised branches (nil process, already-dead group). | Hard to trigger deterministically without racing the scheduler. | Done: `killProcessGroup` is a package-level seam; tests drive the nil-process no-op, the ESRCH tolerance and the propagation of other errors. `internal/executil` is 100.0% covered. |
 | OPEN-9 | Two reachable advisories are accepted in `.github/govulncheck-exclude.txt`: `GO-2026-4887` and `GO-2026-4883` in `github.com/docker/docker v28.5.2+incompatible`. Dependabot also reports four open alerts on the same module (two high, two medium), every one with no patched version. | All four are marked "Fixed in: N/A" upstream; the newest published module is pinned. The two reachable ones are the only ones govulncheck has to allowlist. | Revisit by 2027-01-31 or when a fixed release ships. |
 | OPEN-10 | Local `-race` and `govulncheck` could not run. | `-race` requires cgo and `gcc` is not installed; `govulncheck` is not installed and the vulnerability database was unreachable from this host. | Use CI evidence until the local toolchain is provisioned; do not install tooling without approval. |
 | OPEN-11 | `image-scan` fails on `CVE-2026-78661` (HIGH, `golang.org/x/net` DoS) in all five pinned images: cadvisor v0.26.0, Alloy v0.61.0, Loki v0.30.0, node-exporter v0.23.0 and Prometheus v0.28.0. The scan found it on 2026-11-09 after a Trivy database update, unrelated to code changes. | No published image is built with `golang.org/x/net >= 0.62.0`: cadvisor `v0.55.1` ships `v0.47.0` and `v0.60.6` ships `v0.57.0`; the Alloy, Loki, node-exporter and Prometheus pins are the newest reviewed tags. Bumping the whole stack would change four to five production images and still not fix the finding. | Time-boxed, package-scoped exceptions in the five `.github/trivy/*.yaml` baselines until **2026-11-30**. Remove each entry as soon as its image ships `x/net >= 0.62.0`; Trivy re-reports the finding after the expiry. |
@@ -289,3 +292,4 @@ Alloy CVE.
 | 11 | `chore/remove-unused-state` | #76 | Remove the unused `internal/state` package |
 | 12 | `chore/remove-unused-safejoin` | #78 | Remove the unused `fsutil.SafeJoin` helper |
 | 13 | `ci/coverage-floor` | #83 | Fail CI when total coverage drops below 70% |
+| 14 | `test/executil-process-group-branches` | #85 | Cover every process-group cancel branch |
